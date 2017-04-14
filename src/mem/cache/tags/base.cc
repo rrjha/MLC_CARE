@@ -56,11 +56,7 @@ using namespace std;
 
 BaseTags::BaseTags(const Params *p)
     : ClockedObject(p), blkSize(p->block_size), size(p->size),
-      lookupLatency(p->tag_latency),
-      accessLatency(p->sequential_access ?
-                    p->tag_latency + p->data_latency :
-                    std::max(p->tag_latency, p->data_latency)),
-      cache(nullptr), warmupBound(0),
+      accessLatency(p->hit_latency), twostep(p->two_step_encoding), cache(nullptr), warmupBound(0),
       warmedUp(false), numBlocks(0)
 {
 }
@@ -122,6 +118,69 @@ BaseTags::regStats()
     for (int i = 0; i < cache->system->maxMasters(); i++) {
         occupancies.subname(i, cache->system->getMasterName(i));
     }
+    //add by qi 
+    
+		
+	avgFlipbits
+		.init(9)
+		.name(name() + ".avg_fb")
+		.desc("average Number of fbs of different Hamming distance HD");	
+		
+	totalFlipbits
+		.init(9)
+		.name(name() + ".total_fb")
+		.desc("toal Number of fbs of different Hamming distance HD")
+		.flags(total | nonan);
+		
+		
+	totalZT
+		.init(274)
+		.name(name() + ".total_ZT")
+		.desc("toal Number of ZT of different Hamming distance HD")
+		.flags(total | nonan);
+	totalST
+		.init(274)
+		.name(name() + ".total_ST")
+		.desc("toal Number of ST of different Hamming distance HD")
+		.flags(total | nonan);
+	totalHT
+		.init(274)
+		.name(name() + ".total_HT")
+		.desc("toal Number of HT of different Hamming distance HD")
+		.flags(total | nonan);
+	totalTT
+		.init(274)
+		.name(name() + ".total_TT")
+		.desc("toal Number of TT of different Hamming distance HD")
+		.flags(total | nonan);
+		
+	totalReps
+		.init(274)
+		.name(name() + ".total_Reps")
+		.desc("toal Number of Reps of different Hamming distance HD")
+		.flags(total | nonan);
+		
+	totalRanks
+		.init(5)
+		.name(name() + ".total_ranks")
+        .desc("Total number of eranks.")
+        .flags(total | nonan);
+        
+    totalInvalidFill
+		.name(name() + ".total_invalid_fill")
+        .desc("Total number of total_invalid_fills.")
+        ;
+	lruTrans
+		.init(5)
+		.name(name() + ".lru_trans")
+		.desc("total Number of 4 transitions if lru")
+		.flags(total | nonan);
+	optimalTrans
+		.init(5)
+		.name(name() + ".optimal_trans")
+		.desc("total Number of 4 transitions if optimamized")
+		.flags(total | nonan);
+
 
     avgOccs
         .name(name() + ".occ_percent")

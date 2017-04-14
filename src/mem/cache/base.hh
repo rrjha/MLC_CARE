@@ -72,6 +72,7 @@
 #include "sim/full_system.hh"
 #include "sim/sim_exit.hh"
 #include "sim/system.hh"
+#include "mem/cache/two_step.hh"
 
 /**
  * A basic cache interface. Implements some common functions for speed.
@@ -193,6 +194,10 @@ class BaseCache : public MemObject
     /** Write/writeback buffer */
     WriteQueue writeBuffer;
 
+    /** Specify if Two Step encoding is employed for edurance of MLC */
+    const unsigned twostep;
+    two_step *m_ts;
+
     /**
      * Mark a request as in service (sent downstream in the memory
      * system), effectively making this MSHR the ordering point.
@@ -265,12 +270,6 @@ class BaseCache : public MemObject
     const Cycles lookupLatency;
 
     /**
-     * The latency of data access of a cache. It occurs when there is
-     * an access to the cache.
-     */
-    const Cycles dataLatency;
-
-    /**
      * This is the forward latency of the cache. It occurs when there
      * is a cache miss and a request is forwarded downstream, in
      * particular an outbound miss.
@@ -280,12 +279,18 @@ class BaseCache : public MemObject
     /** The latency to fill a cache block */
     const Cycles fillLatency;
 
+	/** The latency of a write in this device.
+     */
+    const Cycles writeLatency;
+
     /**
      * The latency of sending reponse to its upper level cache/core on
      * a linefill. The responseLatency parameter captures this
      * latency.
      */
     const Cycles responseLatency;
+
+
 
     /** The number of targets for each MSHR. */
     const int numTarget;
@@ -325,6 +330,7 @@ class BaseCache : public MemObject
     const AddrRangeList addrRanges;
 
   public:
+
     /** System we are currently operating in. */
     System *system;
 
@@ -392,6 +398,9 @@ class BaseCache : public MemObject
     /** The number of times a HW-prefetched block is evicted w/o reference. */
     Stats::Scalar unusedPrefetches;
 
+    /** Total Transitions **/
+    Stats::Vector totalTrans;
+
     /** Number of blocks written back per thread. */
     Stats::Vector writebacks;
 
@@ -454,6 +463,10 @@ class BaseCache : public MemObject
     /** The average overall latency of an MSHR miss. */
     Stats::Formula overallAvgMshrUncacheableLatency;
 
+    /** Transition stats **/
+    /** Average transitions **/
+    //Stats::AverageVector avgTrans[MAX_TRANSITION];
+
     /**
      * @}
      */
@@ -465,7 +478,7 @@ class BaseCache : public MemObject
 
   public:
     BaseCache(const BaseCacheParams *p, unsigned blk_size);
-    ~BaseCache() {}
+    ~BaseCache() { delete m_ts; }
 
     virtual void init();
 
@@ -518,7 +531,8 @@ class BaseCache : public MemObject
         WriteQueueEntry *wq_entry =
             writeBuffer.findMatch(blk_addr, pkt->isSecure());
         if (wq_entry && !wq_entry->inService) {
-            DPRINTF(Cache, "Potential to merge writeback %s", pkt->print());
+            DPRINTF(Cache, "Potential to merge writeback %s to %#llx",
+                    pkt->cmdString(), pkt->getAddr());
         }
 
         writeBuffer.allocate(blk_addr, blkSize, pkt, time, order++);
@@ -609,6 +623,10 @@ class BaseCache : public MemObject
 
     }
 
+    unsigned is_two_step()
+    {
+        return twostep;
+    }
 };
 
 #endif //__MEM_CACHE_BASE_HH__

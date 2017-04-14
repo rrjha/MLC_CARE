@@ -53,6 +53,7 @@
 #include "mem/cache/mshr.hh"
 #include "mem/cache/tags/fa_lru.hh"
 #include "mem/cache/tags/lru.hh"
+#include "mem/cache/tags/car.hh"
 #include "mem/cache/tags/random_repl.hh"
 #include "sim/full_system.hh"
 
@@ -71,11 +72,12 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
       cpuSidePort(nullptr), memSidePort(nullptr),
       mshrQueue("MSHRs", p->mshrs, 0, p->demand_mshr_reserve), // see below
       writeBuffer("write buffer", p->write_buffers, p->mshrs), // see below
+      twostep(p->two_step_encoding),
       blkSize(blk_size),
-      lookupLatency(p->tag_latency),
-      dataLatency(p->data_latency),
-      forwardLatency(p->tag_latency),
-      fillLatency(p->data_latency),
+      lookupLatency(p->hit_latency),
+      forwardLatency(p->hit_latency),
+      fillLatency(p->response_latency),
+      writeLatency(p->write_latency),
       responseLatency(p->response_latency),
       numTarget(p->tgts_per_mshr),
       forwardSnoops(true),
@@ -95,6 +97,8 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
 
     // forward snoops is overridden in init() once we can query
     // whether the connected master is actually snooping or not
+    if(twostep > 0)
+		m_ts = new two_step(totalTrans);
 }
 
 void
@@ -758,5 +762,12 @@ BaseCache::regStats()
     for (int i = 0; i < system->maxMasters(); i++) {
         overallAvgMshrUncacheableLatency.subname(i, system->getMasterName(i));
     }
+
+	totalTrans
+		.init(4)
+		.name(name() + ".total_trans")
+		.desc("toal Number of ZT,ST,HT and TT")
+		.flags(total | nonan);
+
 
 }
