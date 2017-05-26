@@ -1,0 +1,16 @@
+ #sbatch restore_options.sh perlbench 90000 200 $1
+ #sbatch restore_options.sh bwaves 800000 200 $1
+ sbatch restore_options.sh leslie3d 220000 200 $1
+ #sbatch restore_options.sh bzip2 379200 200 $1
+ #sbatch restore_options.sh mcf 3t06000 200 $1
+ sbatch restore_options.sh GemsFDTD 430000 200 $1
+ sbatch restore_options.sh omnetpp 377200 200 $1
+ #sbatch restore_options.sh hmmer 331300 200 $1
+ #sbatch restore_options.sh zeusmp 350000 200 $1
+ #visbatch restore_options.sh gobmk 53000 200 $1
+ #sbatch restore_options.sh astar 328700 200 $1
+ #sbatch restore_options.sh lbm 60000 200 $1
+ sbatch restore_options.sh perlbench 90000 200 $1
+ sbatch restore_options.sh cactusADM 100000 200 $1
+ #sbatch restore_options.sh h264ref 527100 200 $1
+ sbatch restore_options.sh soplex 210000 200 $1

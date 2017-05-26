@@ -1,0 +1,19 @@
+/home/rakeshjha/MLC_CARE/gem5_mlc_care
+c32b-s7.ufhpc
+Fri May 26 12:58:22 EDT 2017
+[?1034hscons: Reading SConscript files ...
+Warning: Protocol buffer compiler (protoc) not found.
+         Please install protobuf-compiler for tracing support.
+Warning: This combination of gcc and swig have known incompatibilities.
+         If you encounter build problems, please update swig to 3.0 or later.
+Checking for C header file Python.h... yes
+Checking for C library python2.7... yes
+Checking for C library pthread... yes
+Checking for C library dl... yes
+Checking for C library util... yes
+Checking for C library m... yes
+Checking for accept(0,0,0) in C++ library None... yes
+Checking for zlibVersion() in C++ library z... no
+Error: did not find needed zlib compression library and/or zlib.h header file.
+       Please install zlib and try again.
+Fri May 26 12:58:28 EDT 2017
