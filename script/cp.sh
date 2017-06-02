@@ -15,5 +15,5 @@ export LIBRARY_PATH=/apps/gcc/5.2.0/python/2.7.10/lib:$LIBRARY_PATH
  
 #echo "Running plot script on a single CPU core"
 
-/home/qizeng/gem5/build/ALPHA/gem5.opt /home/qizeng/gem5/configs/example/spec06_config_single.py --benchmark=bzip2 --take-checkpoint=379200000000 --at-instruction
+/home/rakeshjha/MLC_CARE/gem5/build/ALPHA/gem5.opt /home/rakeshjha/MLC_CARE/gem5/configs/example/spec06_config_single.py --benchmark=bzip2 --take-checkpoint=379200000000 --at-instruction
 date

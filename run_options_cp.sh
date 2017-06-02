@@ -19,8 +19,8 @@
 
 
 ############ DIRECTORY VARIABLES: MODIFY ACCORDINGLY #############
-GEM5_DIR=/home/qizeng/gem5                          # Install location of gem5
-SPEC_DIR=/home/qizeng/cpu2006                # Install location of your SPEC2006 benchmarks
+GEM5_DIR=/home/rakeshjha/MLC_CARE/gem5                          # Install location of gem5
+SPEC_DIR=/home/rakeshjha/MLC_CARE/cpu2006                # Install location of your SPEC2006 benchmarks
 ##################################################################
 
 ARGC=$# # Get number of arguments excluding arg0 (the script itself). Check for help message condition.
@@ -233,4 +233,4 @@ echo "" | tee -a $SCRIPT_OUT
 if [ ! -d "$OUTPUT_DIR/$BENCHMARK/options_"$5 ]; then
 	mkdir $OUTPUT_DIR/$BENCHMARK/options_$5
 fi
-$GEM5_DIR/build/ALPHA/gem5.opt --outdir=$OUTPUT_DIR/$BENCHMARK/options_$5 $GEM5_DIR/configs/example/spec06_config_single.py --benchmark=$BENCHMARK --restore-with-cpu=detailed -s 1000000000 --cpu-clock=3GHz --mem-size=4GB --mem-channels=2 --mem-type=DDR3_1600_8x8 --caches --l1i_size=32kB --l1i_assoc=8 --l1d_size=32kB --l1d_assoc=8 --l2cache --l2_size=256kB --l2_assoc=8 --l3cache --l3_size=4MB --l3_assoc=32 --l3_tags=$5 --checkpoint-dir=/home/qizeng/cpu2006/benchspec/CPU2006/$BENCHMARK_CODE/run/run_base_ref_my-alpha.0000/m5out/ --checkpoint-restore=$WARM_LEN --at-instruction --maxinsts=$RUN_LEN --warmup-insts=1000000000
+$GEM5_DIR/build/ALPHA/gem5.opt --outdir=$OUTPUT_DIR/$BENCHMARK/options_$5 $GEM5_DIR/configs/example/spec06_config_single.py --benchmark=$BENCHMARK --restore-with-cpu=detailed -s 1000000000 --cpu-clock=3GHz --mem-size=4GB --mem-channels=2 --mem-type=DDR3_1600_8x8 --caches --l1i_size=32kB --l1i_assoc=8 --l1d_size=32kB --l1d_assoc=8 --l2cache --l2_size=256kB --l2_assoc=8 --l3cache --l3_size=4MB --l3_assoc=32 --l3_tags=$5 --checkpoint-dir=/home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/$BENCHMARK_CODE/run/run_base_ref_my-alpha.0000/m5out/ --checkpoint-restore=$WARM_LEN --at-instruction --maxinsts=$RUN_LEN --warmup-insts=1000000000

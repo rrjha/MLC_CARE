@@ -15,6 +15,6 @@ export LIBRARY_PATH=/apps/gcc/5.2.0/python/2.7.10/lib:$LIBRARY_PATH
  
 #echo "Running plot script on a single CPU core"
 
-/home/qizeng/gem5/run_one.sh mcf 10000 200
+/home/rakeshjha/MLC_CARE/gem5/run_one.sh mcf 10000 200
 
 date

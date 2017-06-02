@@ -18,5 +18,5 @@ var3=$3
 #echo "Running plot script on a single CPU core"
 # need change frm 3792 to 3782 due to 1B warmup
 # benchnark #warmup million # run million
-/home/qizeng/gem5/run_mlc_mix_cp.sh $1 /home/qizeng/gem5/mixrun $2 $3
+/home/rakeshjha/MLC_CARE/gem5/run_mlc_mix_cp.sh $1 /home/rakeshjha/MLC_CARE/gem5/mixrun $2 $3
 date

@@ -22,5 +22,5 @@ num2=$3
 sum2=$(($var3 * $default))
 #echo "Running plot script on a single CPU core"
 # need change frm 3792 to 3782 due to 1B warmup
-/home/qizeng/gem5_twostep/run_options_cp.sh $var1 /home/qizeng/gem5_twostep/rest $sum $sum2 $var4
+/home/rakeshjha/MLC_CARE/gem5_twostep/run_options_cp.sh $var1 /home/rakeshjha/MLC_CARE/gem5_twostep/rest $sum $sum2 $var4
 date

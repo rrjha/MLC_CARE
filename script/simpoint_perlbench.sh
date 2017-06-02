@@ -17,12 +17,12 @@ export LIBRARY_PATH=/apps/gcc/5.2.0/python/2.7.10/lib:$LIBRARY_PATH
 
 var1=$1
 var2=$2
-cd /home/qizeng
-#/home/qizeng/gem5/cp_gem5.sh $1
-OUTPUT_DIR=/home/qizeng/gem5/simpoints
+cd /home/rakeshjha/MLC_CARE
+#/home/rakeshjha/MLC_CARE/gem5/cp_gem5.sh $1
+OUTPUT_DIR=/home/rakeshjha/MLC_CARE/gem5/simpoints
 if [ ! -d "$OUTPUT_DIR/$BENCHMARK/$var1" ]; then
 mkdir $OUTPUT_DIR/$BENCHMARK/$var1
 fi
-cd /home/qizeng/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_my-alpha.0000/
-/home/qizeng/gem5/build/ALPHA/gem5.opt --outdir=$OUTPUT_DIR/$var1 /home/qizeng/gem5/configs/example/se.py --simpoint-profile --simpoint-interval=200000000 --fastmem --cmd="/home/qizeng/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_my-alpha.0000/perlbench_base.my-alpha" --options=" -I./lib  checkspam.pl 2500 5 25 11 150 1 1 1 1"
+cd /home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_my-alpha.0000/
+/home/rakeshjha/MLC_CARE/gem5/build/ALPHA/gem5.opt --outdir=$OUTPUT_DIR/$var1 /home/rakeshjha/MLC_CARE/gem5/configs/example/se.py --simpoint-profile --simpoint-interval=200000000 --fastmem --cmd="/home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_my-alpha.0000/perlbench_base.my-alpha" --options=" -I./lib  checkspam.pl 2500 5 25 11 150 1 1 1 1"
 date

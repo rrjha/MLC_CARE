@@ -14,4 +14,4 @@ module load gcc python libz
 export LIBRARY_PATH=/apps/gcc/5.2.0/python/2.7.10/lib:$LIBRARY_PATH
  
 #echo "Running plot script on a single CPU core"
-sh /home/qizeng/gem5/tt.sh
+sh /home/rakeshjha/MLC_CARE/gem5/tt.sh

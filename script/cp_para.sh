@@ -18,5 +18,5 @@ export LIBRARY_PATH=/apps/gcc/5.2.0/python/2.7.10/lib:$LIBRARY_PATH
 var1=$1
 var2=$2
 
-/home/qizeng/gem5/cp_gem5.sh $1 $2
+/home/rakeshjha/MLC_CARE/gem5/cp_gem5.sh $1 $2
 date

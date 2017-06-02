@@ -87,7 +87,7 @@ def config_cache(options, system):
         system.l3.cpu_side = system.tol3bus.master
         system.l3.mem_side = system.membus.slave
 	if options.l3_tags == 0: # no flip encoding_size=4
-		system.l3.tags = SEC()
+		system.l3.tags = MLC()
 	if options.l3_tags == 1: # no flip encoding_size=4
 		system.l3.tags = SEC()
 	if options.l3_tags == 2: # no flip encoding_size=4
@@ -197,7 +197,36 @@ def config_cache(options, system):
 		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 1.0, options = 0)
 	if options.l3_tags == 224: #get rank by 2bit flip mlc flip_size=4
                 system.l3.tags = MLC(loc_weight = 512, diverse_weight = 6.82, options = 1)
-	
+
+	#dynamic study
+	if options.l3_tags == 350: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 351: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 352: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 353: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 354: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 355: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 356: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 357: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 358: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 359: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 370: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 371: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 372: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 380: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
 
     for i in xrange(options.num_cpus):
         if options.caches:

@@ -1,13 +1,13 @@
 Command line:
-/home/qizeng/gem5/run_options_cp.sh perlbench /home/qizeng/gem5/rest 380000000000 200000000 8
+/home/rakeshjha/MLC_CARE/gem5/run_options_cp.sh omnetpp /home/rakeshjha/MLC_CARE/gem5/rest 377200000000 200000000 380
 ================= Hardcoded directories ==================
-GEM5_DIR:                                     /home/qizeng/gem5
-SPEC_DIR:                                     /home/qizeng/cpu2006
+GEM5_DIR:                                     /home/rakeshjha/MLC_CARE/gem5
+SPEC_DIR:                                     /home/rakeshjha/MLC_CARE/cpu2006
 ==================== Script inputs =======================
-BENCHMARK:                                    perlbench
-OUTPUT_DIR:                                   /home/qizeng/gem5/rest
+BENCHMARK:                                    omnetpp
+OUTPUT_DIR:                                   /home/rakeshjha/MLC_CARE/gem5/rest
 ==========================================================
-Changing to SPEC benchmark runtime directory: /home/qizeng/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_my-alpha.0000
+Changing to SPEC benchmark runtime directory: /home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/471.omnetpp/run/run_base_ref_my-alpha.0000
 
 
 --------- Here goes nothing! Starting gem5! ------------

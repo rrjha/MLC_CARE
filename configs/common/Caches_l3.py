@@ -78,8 +78,8 @@ class L3Cache(Cache):
     hit_latency = 20
     write_latency = 50
     response_latency = 20
-    sector_size = 4
-    entry_size = 4
+#    sector_size = 4
+#    entry_size = 4
     mshrs = 512
     tgts_per_mshr = 20
     write_buffers = 256

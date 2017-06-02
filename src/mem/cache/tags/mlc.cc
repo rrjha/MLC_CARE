@@ -61,14 +61,14 @@ MLC::MLC(const Params *p)
 	diverse_weight = p->diverse_weight;
 	shiftSize = 64;
 	options = p->options;
-	encodingSize = 8;
+	/*encodingSize = 8;
 	shiftSize = 64;
 	flipSize = 8;
 	thres = 47;
-	loc_weight = 8;
+	loc_weight = 8;*/
 	std::cout<<"MLC "<< diverse_weight<<" "<<loc_weight<<" thres"<< thres<<" "<< encodingSize <<" " <<flipSize <<" options " <<options <<std::endl;
-	/*std::cout<<"sec "<< diverse_weight<<" "<<loc_weight<<" thres"<< thres<<" "<< encodingSize <<" " <<flipSize <<" options " <<options <<std::endl;
-	std::cout<<"sector "<< secSize <<" entry_size"<<entrySize<<"shift " <<secShift<<std::endl;*/
+	//std::cout<<"sec "<< diverse_weight<<" "<<loc_weight<<" thres"<< thres<<" "<< encodingSize <<" " <<flipSize <<" options " <<options <<std::endl;
+	//std::cout<<"sector "<< secSize <<" entry_size"<<entrySize<<"shift " <<secShift<<std::endl;
 }
 
 CacheBlk*
@@ -1057,7 +1057,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 						//std::memcpy(blk->data, pkt->getConstPtr<uint8_t>(), blkSize);
 						enc_d = encodingCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, thres, encodingSize);
 						
-						if(options == 1 ){
+						if(options == 1 ){ // curfb counts the tt zt and ht
 							if(loc_weight >= 1024 )
 								curfb = lineCompare(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 							else if(loc_weight >= 512 ) // 2bit
