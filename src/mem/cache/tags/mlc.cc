@@ -87,7 +87,7 @@ MLC::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
     return blk;
 }
 std::vector<int> 
-MLC::lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){
+MLC::lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){ // flip and write :: count all bits and flip all bits
 		int mask = 1;
 	int fs = flipSize;
 	if( flipSize == 0 ) fs = size+1; // no flip
@@ -115,8 +115,8 @@ MLC::lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSiz
 			for(int k = 0; k<8; k += 2)  {
 				int label = (((from >> k) & 3)*10) + ((to >> k) & 3); // 3 for 0b11
 				int rev_label = (((from >> k) & 3)*10) + 3 - ((to >> k) & 3);
-				if(label  == 30 or label == 3 or label == 12 or label == 21) cnt10 += 2; // significant bits change from 1 to 0
-				else if(label == 31 or label == 13 or label == 20 or label == 2 or label == 1 or label == 10 or label == 32 or label == 23 ) cnt01 ++; // significant bits change from 0 to 1
+				if(label  == 30 or label == 3 or label == 12 or label == 21) cnt10 += 2; // two bits change
+				else if(label == 31 or label == 13 or label == 20 or label == 2 or label == 1 or label == 10 or label == 32 or label == 23 ) cnt01 ++; // one bit change 
 				//std::cout<<"label "<< label << " rev " << rev_label<<std::endl;
 				normal_cnt[label] += 1;
 				rev_cnt[rev_label] += 1;// 3 is the mask 0x11. count every 2 bits in a byte
@@ -956,7 +956,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 								//pq.push(1.084*fb[1]+ 1.084*fb[3] + 2.653*fb[2] + 2.653*fb[3]);
 							
 													
-							double cur = 1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3] + recency * (diverse_weight);
+							double cur = 1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3] + recency * (loc_weight % 512); // new change here ???
 							//if(enc_d < 7 )
 							//	cur = 0 + recency * (loc_weight % 512);
 							//int t = (8 * encodingSize) * hd  + recency * loc_weight;

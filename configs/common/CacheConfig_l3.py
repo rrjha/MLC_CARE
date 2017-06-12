@@ -227,6 +227,26 @@ def config_cache(options, system):
                 system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
 	if options.l3_tags == 380: #2bit flip mlc flip_size=4
                 system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 1)
+	if options.l3_tags == 381: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 1)
+	if options.l3_tags == 382: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 12.0, options = 1)
+	if options.l3_tags == 383: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 25.0, options = 1)
+	if options.l3_tags == 384: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 6.0, options = 1)
+	if options.l3_tags == 385: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 4.0, options = 1)
+	if options.l3_tags == 386: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 2.0, options = 1)
+	if options.l3_tags == 387: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 0.5, options = 1)
+	if options.l3_tags == 388: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 0.25, options = 1)
+	if options.l3_tags == 389: #2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 0.1, options = 1)
+	if options.l3_tags == 390: # count them 4 all for curve fitting 8byte
+		system.l3.tags = MLC(loc_weight = 1022,flipSize = 8,encodingSize = 8,thres = 25, options = 2, diverse_weight = 8.0 )
 
     for i in xrange(options.num_cpus):
         if options.caches:
