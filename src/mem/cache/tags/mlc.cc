@@ -248,7 +248,7 @@ int MLC::encodingCompare_2bit(const Byte* ablock, const Byte* bblock, int size, 
 
 std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){
 	int mask = 0;
-	int fs = flipSize;
+	int fs = flipSize; // the size the chunk , if flipsize iis 0 means no flip
 	if( flipSize == 0 ) fs = size+1; // no flip
 	else
 		mask = 2*(size/fs) - 2;
@@ -260,27 +260,27 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 	//int minimal_bits = 512;
 	//for (int i =0; i<size; i += shiftSize){
 		Byte from, to;
-		std::vector<int> res(5,0);// ZT, ST, HT, TT
+		std::vector<int> res(5,0);// ZT, ST, HT, TT & I use the the res[4] to return the new flip bits string
 		//int total_bits = 0;
 		//int flipbits = 0;
-		int ifFlip = (flipBits >>mask) &3;
+		int ifFlip = (flipBits >>mask) &3; // ifFlip records the flip option information, because in the block I stored the real content, we need remmaped it back to cell content.
 		//int cnt01 = 0;
 		//int cnt10 = 0;
-		for(int j = 0; j < size; j++){
+		for(int j = 0; j < size; j++){ // for each byte
 			from = ablock[j]; // from block
-			if(ifFlip == 3 ) from = ~from; 
-			to = bblock[j]; // to block
+			if(ifFlip == 3 ) from = ~from; // this is flip all
+			to = bblock[j]; // to is the new block 
 			
 			
-			for(int k = 0; k<8; k += 2)  {
+			for(int k = 0; k<8; k += 2)  { // for each 2-bit inside a byte
 				int label_fr = (((from >> k) & 3));
 				int label_to =  ((to >> k) & 3); // 3 for 0b11
 				
-				if(ifFlip == 1 && (label_fr == 0 or label_fr == 3) ) // 00 11 swap
+				if(ifFlip == 1 && (label_fr == 0 or label_fr == 3) ) // 00 11 swap 
 					label_fr = 3 - label_fr;
 				else if(ifFlip == 2 && (label_fr == 1 or label_fr == 2) ) //01 10 swap
 					label_fr = 3- label_fr;
-				int label = label_fr *10 + label_to;
+				int label = label_fr *10 + label_to; // so we use label to indicate the 2-bit old cell content and 2-bit new real content
 				//int rev_label = (((from >> k) & 3)*10) + 3 - ((to >> k) & 3);
 				//if(label  == 30 or label == 31 or label == 20 or label == 21) cnt10++; // significant bits change from 1 to 0
 				//else if(label == 3 or label == 13 or label == 2 or label == 12 ) cnt01 ++; // significant bits change from 0 to 1
@@ -290,22 +290,24 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 				 
 			}
 			
-			if(fs <= size && (j+1)% fs == 0 ){ // to decide if flip
-				if( normal_cnt[0] + normal_cnt[10] + normal_cnt[23] + normal_cnt[33] >= normal_cnt[3] + normal_cnt[13] +normal_cnt[20] +normal_cnt[30]){ // no flip
+			if(fs <= size && (j+1)% fs == 0 ){ // when the byte is multiple of chunk size , need to decide if we flip this chunk
+			//Flip decision is made by the count. Rakesh you need change the decision logic here
+				if( normal_cnt[0] + normal_cnt[10] + normal_cnt[23] + normal_cnt[33] >= normal_cnt[3] + normal_cnt[13] +normal_cnt[20] +normal_cnt[30]){ // no 00/11 change
 				
-					res[4] = res[4]<<1 ;
+					res[4] = res[4]<<1 ; // 0* ->>I recorded the flip options, which will be return
+					
 					//bool ifSwap = false;
-					res[4] = res[4]<<1 ;
+					res[4] = res[4]<<1 ; // 00 ->>I recorded the flip options, which will be return
 					if( normal_cnt[1] + normal_cnt[11] + normal_cnt[22] + normal_cnt[32] < normal_cnt[2] + normal_cnt[12] +normal_cnt[21] +normal_cnt[31]){
 						//ifSwap = true;
-						res[4] += 1;
-						std::swap(normal_cnt[1], normal_cnt[2]);
-						std::swap(normal_cnt[11], normal_cnt[12]);
+						res[4] += 1; // 01 ->>I recorded the flip options, which will be return
+						std::swap(normal_cnt[1], normal_cnt[2]); // use swap to prepare  the value for transistions counting
+						std::swap(normal_cnt[11], normal_cnt[12]); // do all 01/10 exchange
 						std::swap(normal_cnt[21], normal_cnt[22]);
 						std::swap(normal_cnt[31], normal_cnt[32]);
 					}
-					for(auto it : normal_cnt){
-						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
+					for(auto it : normal_cnt){ // count transistions
+						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt 
 							res[0] += it.second;							
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
@@ -314,16 +316,16 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 						else 
 							res[3] += it.second; //tt
 					}
-				}else{
-					res[4] = (res[4]<<1) or 1;
-					std::swap(normal_cnt[0], normal_cnt[3]);
+				}else{ // do 00/11 exchange first
+					res[4] = (res[4]<<1) or 1; // 1* ->>I recorded the flip options, which will be return
+					std::swap(normal_cnt[0], normal_cnt[3]); // do all 11/00 exhange
 					std::swap(normal_cnt[10], normal_cnt[13]);
 					std::swap(normal_cnt[23], normal_cnt[20]);
 					std::swap(normal_cnt[33], normal_cnt[30]);
-					res[4] = (res[4]<<1);
+					res[4] = (res[4]<<1); // 10 ->>I recorded the flip options, which will be return
 					if( normal_cnt[1] + normal_cnt[11] + normal_cnt[22] + normal_cnt[32] < normal_cnt[2] + normal_cnt[12] + normal_cnt[21] + normal_cnt[31]){
 						//ifSwap = true;
-						res[4] += 1;
+						res[4] += 1; //   11->>I recorded the flip options, which will be return
 						std::swap(normal_cnt[1], normal_cnt[2]);
 						std::swap(normal_cnt[11], normal_cnt[12]);
 						std::swap(normal_cnt[21], normal_cnt[22]);
@@ -341,7 +343,7 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 					}
 				}
 				mask = mask -2;
-				ifFlip = (flipBits >> mask) & 3;
+				ifFlip = (flipBits >> mask) & 3; // update the ifPlip for next chunk
 				normal_cnt.clear();
 				//rev_cnt.clear();
 				//cnt01 = 0;
