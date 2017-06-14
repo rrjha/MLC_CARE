@@ -86,7 +86,7 @@ MLC::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
 
     return blk;
 }
-std::vector<int> 
+std::vector<int>
 MLC::lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){ // flip and write :: count all bits and flip all bits
 		int mask = 1;
 	int fs = flipSize;
@@ -108,24 +108,24 @@ MLC::lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSiz
 		int cnt10 = 0;
 		for(int j = 0; j < size; j++){
 			from = ablock[j]; // from block
-			if(ifFlip) from = ~from; 
+			if(ifFlip) from = ~from;
 			to = bblock[j]; // to block
-			
-			
+
+
 			for(int k = 0; k<8; k += 2)  {
 				int label = (((from >> k) & 3)*10) + ((to >> k) & 3); // 3 for 0b11
 				int rev_label = (((from >> k) & 3)*10) + 3 - ((to >> k) & 3);
 				if(label  == 30 or label == 3 or label == 12 or label == 21) cnt10 += 2; // two bits change
-				else if(label == 31 or label == 13 or label == 20 or label == 2 or label == 1 or label == 10 or label == 32 or label == 23 ) cnt01 ++; // one bit change 
+				else if(label == 31 or label == 13 or label == 20 or label == 2 or label == 1 or label == 10 or label == 32 or label == 23 ) cnt01 ++; // one bit change
 				//std::cout<<"label "<< label << " rev " << rev_label<<std::endl;
 				normal_cnt[label] += 1;
 				rev_cnt[rev_label] += 1;// 3 is the mask 0x11. count every 2 bits in a byte
-				 
+
 			}
-			
+
 			if(fs <= size && (j+1)% fs == 0 ){ // to decide if flip
 				if(cnt01 + cnt10 <= fs*4){ // no flip this time
-				
+
 					res[4] = res[4]<<1 ;
 					//bool ifSwap = false;
 					/*if( normal_cnt[1] + normal_cnt[11] + normal_cnt[22] + normal_cnt[32] < normal_cnt[2] + normal_cnt[12] +normal_cnt[21] +normal_cnt[31]){
@@ -137,12 +137,12 @@ MLC::lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSiz
 					}*/
 					for(auto it : normal_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second; //tt
 					}
 				}else{
@@ -156,12 +156,12 @@ MLC::lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSiz
 					}*/
 					for(auto it : rev_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second;
 					}
 				}
@@ -170,23 +170,23 @@ MLC::lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSiz
 				normal_cnt.clear();
 				rev_cnt.clear();
 				cnt01 = 0;
-				cnt10 = 0;					
-			}		
+				cnt10 = 0;
+			}
 		}
 		if( fs > size){// no filp at all
 				for(auto it : normal_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second;
 						}
 						res[4] = 0;
 		}
-		
+
 		//if(res[3] + res[2] < ret[3] + ret[2])
 		ret = res;
 	//}
@@ -201,7 +201,7 @@ int MLC::encodingCompare_2bit(const Byte* ablock, const Byte* bblock, int size, 
 	int numSeg = (size/encodingSize) + 1;
 	double total_diff = 0;
 		int abits = 0, bbits = 0;
-	if(thres >= 0){	// count the #01 and 00	
+	if(thres >= 0){	// count the #01 and 00
 		for(int j = 0; j<size; j++){
 				for(int k = 1; k<8; k += 2)  {
 					if (ablock[j] & (1<<k) ) abits++; // count every 2nd bit in a byte
@@ -216,7 +216,7 @@ int MLC::encodingCompare_2bit(const Byte* ablock, const Byte* bblock, int size, 
 					else if( abits == 0) total_diff += 1;
 					abits = 0;
 					bbits = 0;
-				}					
+				}
 		}
 		//total_bits += flipbits;  // if no flip..
 		if(total_diff < minimal_diff) minimal_diff = total_diff;
@@ -236,14 +236,14 @@ int MLC::encodingCompare_2bit(const Byte* ablock, const Byte* bblock, int size, 
 					else if( abits == 0 ) total_diff += 1;
 					abits = 0;
 					bbits = 0;
-				}					
+				}
 		}
 		//total_bits += flipbits;  // if no flip..
 		if(total_diff < minimal_diff) minimal_diff = total_diff;
-	}		
+	}
 	//}
 	//assert(minimal_diff <= size/encodingSize);
-	return minimal_diff;	
+	return minimal_diff;
 }
 
 std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){
@@ -269,14 +269,14 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 		for(int j = 0; j < size; j++){ // for each byte
 			from = ablock[j]; // from block
 			if(ifFlip == 3 ) from = ~from; // this is flip all
-			to = bblock[j]; // to is the new block 
-			
-			
+			to = bblock[j]; // to is the new block
+
+
 			for(int k = 0; k<8; k += 2)  { // for each 2-bit inside a byte
 				int label_fr = (((from >> k) & 3));
 				int label_to =  ((to >> k) & 3); // 3 for 0b11
-				
-				if(ifFlip == 1 && (label_fr == 0 or label_fr == 3) ) // 00 11 swap 
+
+				if(ifFlip == 1 && (label_fr == 0 or label_fr == 3) ) // 00 11 swap
 					label_fr = 3 - label_fr;
 				else if(ifFlip == 2 && (label_fr == 1 or label_fr == 2) ) //01 10 swap
 					label_fr = 3- label_fr;
@@ -287,15 +287,15 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 				//std::cout<<"label "<< label << " rev " << rev_label<<std::endl;
 				normal_cnt[label] += 1;
 				//rev_cnt[rev_label] += 1;// 3 is the mask 0x11. count every 2 bits in a byte
-				 
+
 			}
-			
+
 			if(fs <= size && (j+1)% fs == 0 ){ // when the byte is multiple of chunk size , need to decide if we flip this chunk
 			//Flip decision is made by the count. Rakesh you need change the decision logic here
 				if( normal_cnt[0] + normal_cnt[10] + normal_cnt[23] + normal_cnt[33] >= normal_cnt[3] + normal_cnt[13] +normal_cnt[20] +normal_cnt[30]){ // no 00/11 change
-				
+
 					res[4] = res[4]<<1 ; // 0* ->>I recorded the flip options, which will be return
-					
+
 					//bool ifSwap = false;
 					res[4] = res[4]<<1 ; // 00 ->>I recorded the flip options, which will be return
 					if( normal_cnt[1] + normal_cnt[11] + normal_cnt[22] + normal_cnt[32] < normal_cnt[2] + normal_cnt[12] +normal_cnt[21] +normal_cnt[31]){
@@ -307,13 +307,13 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 						std::swap(normal_cnt[31], normal_cnt[32]);
 					}
 					for(auto it : normal_cnt){ // count transistions
-						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt 
-							res[0] += it.second;							
+						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second; //tt
 					}
 				}else{ // do 00/11 exchange first
@@ -333,12 +333,12 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 					}
 					for(auto it : normal_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second;
 					}
 				}
@@ -347,30 +347,177 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 				normal_cnt.clear();
 				//rev_cnt.clear();
 				//cnt01 = 0;
-				//cnt10 = 0;					
-			}		
+				//cnt10 = 0;
+			}
 		}
 		if( fs > size){// no filp at all
 				for(auto it : normal_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second;
 						}
 						res[4] = 0;
 		}
-		
+
 		//if(res[3] + res[2] < ret[3] + ret[2])
 		ret = res;
 	//}
 	assert(ret[3] + ret[2] + ret[0] + ret[1] == 256);
-	return ret;	
+	return ret;
+}
+/* Stateful mapping schemes */
+/** NO REMAP    (00)    :        L00->R00, L01->R01, L10->R10, L11->R11 **/
+/** FLIP ALL    (01)    :        L00->R11, L01->R10, L10->R01, L11->R00 **/
+/** FLIP HI     (10)    :        L00->R10, L01->R11, L10->R00, L11->R01 **/
+/** MIXED FLIP  (11)    :        L00->R10, L01->R11, L10->R01, L11->R00 **/
+
+enum ERemapSchemes {
+    ENOREMAP,
+    EFLIPALL,
+    EFLIPHI,
+    EFLIPMIXED,
+    EREMAPINVALID
+    };
+
+int stateful_remaps[4][4] = {   {0, 1, 2, 3},   /*  NO REMAP    */
+                                {3, 2, 1, 0},   /*  FLIP ALL    */
+                                {2, 3, 0, 1},   /*  FLIP HI     */
+                                {2, 3, 1, 0}    /*  MIXED FLIP  */    };
+enum EStateTrans {
+    EZT,
+    EST,
+    EHT,
+    ETT
+};
+
+int remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {00, 11, 22, 33},   /*  ZT  */
+        {10, 01, 32, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  FLIP ALL    */ {
+        {03, 12, 21, 30},   /*  ZT  */
+        {13, 02, 31, 20},   /*  ST  */
+        {00, 10, 23, 33},   /*  HT  */
+        {01, 11, 22, 32}    /*  TT  */
+        },
+
+    /*  FLIP HI     */ {
+        {02, 13, 20, 31},   /*  ZT  */
+        {12, 03, 30, 21},   /*  ST  */
+        {22, 32, 01, 11},   /*  HT  */
+        {23, 33, 00, 10}    /*  TT  */
+        },
+
+    /*  MIXED FLIP  */ {
+        {20, 31, 12, 03},   /*  ZT  */
+        {30, 21, 13, 02},   /*  ST  */
+        {01, 11, 23, 33},   /*  HT  */
+        {00, 10, 22, 32}    /*  TT  */
+        }
+};
+
+const double energy_val[4] = {/*ZT*/ 0, /*ST*/ 1.92, /*HT*/ 3.192, /*TT*/ 3.192+1.92};
+
+/* Currently we calculate actual energy with this floating point calculation *
+ * We need to modify this function for calculating cost intelligently. At the*
+ * least we can use integers in approximate ration of energies for various   *
+ * energy transitions                                                        */
+double energy_cost(ERemapSchemes aRemapScheme, std::unordered_map<int, int>& aCountMap) {
+    int i=0, j=0, s=0;
+    int (*tbl_ptr)[4] = remap_energy_tbl[aRemapScheme];
+    double energy = 0;
+
+    for(i=0; i < 4; i++) {
+        s = 0;
+        for (j=0; j < 4; j++) {
+            s += aCountMap[tbl_ptr[i][j]];
+        }
+        energy += energy_val[i]*s;
+    }
+    return energy;
 }
 
+void increment_state_transitions(ERemapSchemes aRemapScheme, std::unordered_map<int, int>& aCountMap, std::vector<int>& res) {
+    int i=0, j=0;
+    int (*tbl_ptr)[4] = remap_energy_tbl[aRemapScheme];
+
+    for(i=0; i < 4; i++) {
+        for (j=0; j < 4; j++) {
+            res[i] += aCountMap[tbl_ptr[i][j]];
+        }
+    }
+}
+
+std::vector<int> MLC::lineCompare_2bit_stateful_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){
+    int mask = 0;
+    int fs = flipSize; // the size the chunk , if flipsize iis 0 means no flip
+    if( flipSize == 0 ) fs = size+1; // no flip
+    else
+        mask = 2*(size/fs) - 2;
+    std::unordered_map<int, int> normal_cnt;
+    std::vector<int> ret(5, 512);
+    ret[4] = 0;
+    Byte from, to;
+    std::vector<int> res(5,0);// ZT, ST, HT, TT & I use the the res[4] to return the new flip bits string
+    int ifFlip = (flipBits >>mask) &3; // ifFlip records the flip option information, because in the block I stored the real content, we need remmaped it back to cell content.
+    for(int j = 0; j < size; j++){ // for each byte
+        from = ablock[j]; // from block
+        to = bblock[j]; // to is the new block
+
+
+        for(int k = 0; k<8; k += 2)  { // for each 2-bit inside a byte
+            int label_fr = (((from >> k) & 3));
+            int label_to =  ((to >> k) & 3); // 3 for 0b11
+
+            int label = (stateful_remaps[ifFlip][label_fr])*10 + label_to; // so we use label to indicate the 2-bit old cell content and 2-bit new real content
+            normal_cnt[label] += 1;
+        }
+
+        if(fs <= size && (j+1)% fs == 0 ){ // when the byte is multiple of chunk size , need to decide if we flip this chunk
+        //Flip decision is made by the count. Rakesh you need change the decision logic here
+            double min_energy = 256*energy_val[ETT]; //Some high value to start with
+            int finalScheme = 0;
+            for(int scheme = ENOREMAP; scheme < EREMAPINVALID; scheme++) {
+                double temp = energy_cost((ERemapSchemes)scheme, normal_cnt);
+                if(temp < min_energy) {
+                    finalScheme = scheme;
+                    min_energy = temp;
+                }
+            }
+            res[4] = ((res[4] << 2) | finalScheme);
+            increment_state_transitions((ERemapSchemes)finalScheme, normal_cnt, res);
+
+            mask = mask -2;
+            ifFlip = (flipBits >> mask) & 3; // update the ifPlip for next chunk
+            normal_cnt.clear();
+        }
+    }
+    if( fs > size){// no filp at all
+        for(auto it : normal_cnt){
+            if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
+                res[0] += it.second;
+            else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
+                res[1] += it.second;
+            else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
+                res[2] += it.second;
+            else
+                res[3] += it.second;
+            }
+            res[4] = 0;
+    }
+    ret = res;
+    assert(ret[3] + ret[2] + ret[0] + ret[1] == 256);
+    return ret;
+}
 
 std::vector<int> MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){
 	int mask = 1;
@@ -393,10 +540,10 @@ std::vector<int> MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, 
 		int cnt10 = 0;
 		for(int j = 0; j < size; j++){
 			from = ablock[j]; // from block
-			if(ifFlip) from = ~from; 
+			if(ifFlip) from = ~from;
 			to = bblock[j]; // to block
-			
-			
+
+
 			for(int k = 0; k<8; k += 2)  {
 				int label = (((from >> k) & 3)*10) + ((to >> k) & 3); // 3 for 0b11
 				int rev_label = (((from >> k) & 3)*10) + 3 - ((to >> k) & 3);
@@ -405,12 +552,12 @@ std::vector<int> MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, 
 				//std::cout<<"label "<< label << " rev " << rev_label<<std::endl;
 				normal_cnt[label] += 1;
 				rev_cnt[rev_label] += 1;// 3 is the mask 0x11. count every 2 bits in a byte
-				 
+
 			}
-			
+
 			if(fs <= size && (j+1)% fs == 0 ){ // to decide if flip
 				if(cnt01 + cnt10 <= fs*2){ // no flip this time
-				
+
 					res[4] = res[4]<<1 ;
 					//bool ifSwap = false;
 					/*if( normal_cnt[1] + normal_cnt[11] + normal_cnt[22] + normal_cnt[32] < normal_cnt[2] + normal_cnt[12] +normal_cnt[21] +normal_cnt[31]){
@@ -422,12 +569,12 @@ std::vector<int> MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, 
 					}*/
 					for(auto it : normal_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second; //tt
 					}
 				}else{
@@ -441,12 +588,12 @@ std::vector<int> MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, 
 					}*/
 					for(auto it : rev_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second;
 					}
 				}
@@ -455,28 +602,28 @@ std::vector<int> MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, 
 				normal_cnt.clear();
 				rev_cnt.clear();
 				cnt01 = 0;
-				cnt10 = 0;					
-			}		
+				cnt10 = 0;
+			}
 		}
 		if( fs > size){// no filp at all
 				for(auto it : normal_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second;
 						}
 						res[4] = 0;
 		}
-		
+
 		//if(res[3] + res[2] < ret[3] + ret[2])
 		ret = res;
 	//}
 	assert(ret[3] + ret[2] + ret[0] + ret[1] == 256);
-	return ret;	
+	return ret;
 }
 /*
 std::vector<int>
@@ -496,10 +643,10 @@ MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shi
 		int cnt10 = 0;
 		for(int j = 0; j < size; j++){
 			from = ablock[j]; // from block
-			if(ifFlip) from = ~ from; 
+			if(ifFlip) from = ~ from;
 			to = bblock[(j+i)%size]; // to block
-			
-			
+
+
 			for(int k = 0; k<8; k += 2)  {
 				int label = (((from >> k) & 3)*10) + ((to >> k) & 3); // 3 for 0b11
 				int rev_label = (((from >> k) & 3)*10) + ~((to >> k) & 3);
@@ -507,31 +654,31 @@ MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shi
 				else if(label == 3 or label == 13 or label == 2 or label == 12 ) cnt01 ++;
 				normal_cnt[label]++;
 				rev_cnt[rev_label]++;// 3 is the mask 0x11. count every 2 bits in a byte
-				 
+
 			}
 			if((j+1)% flipSize == 0 ){ // to decide if flip
 				if(cnt01 + cnt10 <= flipSize*2){
 					res[4] = res[4]<<1 ;
 					for(auto it : normal_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second;
 					}
 				}else{
 					res[4] = (res[4]<<1) + 1;
 					for(auto it : rev_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second;
 					}
 				}
@@ -539,18 +686,18 @@ MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shi
 				normal_cnt.clear();
 				rev_cnt.clear();
 				cnt01 = 0;
-				cnt10 = 0;					
-			}		
+				cnt10 = 0;
+			}
 		}
 		if(flipSize > size){
 				for(auto it : normal_cnt){
 						if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
-							res[0] += it.second;							
+							res[0] += it.second;
 						else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
 							res[1] += it.second;
 						else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
 							res[2] += it.second;
-						else 
+						else
 							res[3] += it.second;
 				}
 		}
@@ -558,7 +705,7 @@ MLC::lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shi
 				ret = res;
 	}
 	assert(ret[3] + ret[2] + ret[0] + ret[1] == 256);
-	return ret;	
+	return ret;
 }
 */
 
@@ -583,13 +730,13 @@ MLC::encodingCompare(const Byte* ablock, const Byte* bblock, int size, int shift
 					if(abits != bbits) total_diff++;
 					abits = 0;
 					bbits = 0;
-				}					
+				}
 		}
 		//total_bits += flipbits;  // if no flip..
-		if(total_diff < minimal_diff) minimal_diff = total_diff;		
+		if(total_diff < minimal_diff) minimal_diff = total_diff;
 	}
 	//assert(minimal_diff <= size/encodingSize);
-	return minimal_diff;	
+	return minimal_diff;
 }
 
 CacheBlk*
@@ -599,8 +746,8 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
     // grab a replacement candidate
     //CacheBlk *blk = BaseSetAssoc::findVictim(addr);
     //bool unfilled = true ;
-    
-    //LRU framework 
+
+    //LRU framework
 	int set = extractSet(addr);
     // grab a replacement candidate
     BlkType *blk = nullptr;
@@ -615,8 +762,8 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
    /* for (int i = assoc - 1; i >= 0; i--) { // replace the second to LRU
         BlkType *b = sets[set].blks[i];
         if (b->way < allocAssoc) {
-            blk = b;           
-			lru_trans = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[blk->way]);				
+            blk = b;
+			lru_trans = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[blk->way]);
 			if(lru){
 				for(int i =0; i < 4; i++)
 						lruTrans[i] += lru_trans[i];
@@ -628,28 +775,28 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 					ret = blk;
 					break;
 				}
-					
+
 			}
 			if(lru_trans[2]+lru_trans[3] < cur_min){
 				opt_trans = lru_trans;
 				cur_min = lru_trans[2]+lru_trans[3];
 				rind = i;
 				ret = blk;
-			}			
-        }       
+			}
+        }
     }
     for(int i = 0; i < 4 ; i++)
 		optimalTrans[i] += opt_trans[i];
-		
+
 	sets[set].flipBits[ret->way] = 	opt_trans[4];
     rind = rind;
     assert(!ret || ret->way < allocAssoc);
-	
+
     if (ret && ret->isValid()) {
         DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement at %d\n", set, regenerateBlkAddr(ret->tag, set), rind);
     }
     return ret;*/
-    
+
     std::vector<int> locVal(assoc, 0);
     //LRU ENDS
     int retValue = -1;
@@ -664,7 +811,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
     }
     //idx ++;
     if(idx < 0 ) idx = 0;
-    
+
 	//MLC replacement process (no invalid block to replace)
 	if ( blk && blk->isValid()) {
 		//int retValue = -1;
@@ -689,14 +836,14 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 				}
 				if(temp == 7 ) // temp higher, more lru
 					plru[i] = 1; // LRU one, the plru value is smallest as 1.
-				else if(temp == 6) 
+				else if(temp == 6)
 					plru[i] = 2;
-				else if(temp > 3)	
+				else if(temp > 3)
 					plru[i] = 3;
-				else 
+				else
 					plru[i] = 4;
 				}
-			
+
 				 if ( sets[set].m_tree[3] == 0)
 				 {
 					if ( sets[set].m_tree[4] == 0) retValue= 0;
@@ -718,8 +865,8 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 					if ( sets[set].m_tree[8] == 0) retValue = 6;
 					else           retValue = 7;  // b6==1
 				}
-				locVal[retValue] = (plru[8]);   
-			 
+				locVal[retValue] = (plru[8]);
+
 				 if ( sets[set].m_tree[10] == 0)
 				 {
 					if ( sets[set].m_tree[11] == 0) retValue= 8;
@@ -741,8 +888,8 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 					if ( sets[set].m_tree[15] == 0) retValue = 14;
 					else           retValue = 15;  // b6==1
 				 }
-				locVal[retValue] = (plru[10]);   
-			  
+				locVal[retValue] = (plru[10]);
+
 				 if ( sets[set].m_tree[18] == 0)
 				 {
 					if ( sets[set].m_tree[19] == 0) retValue= 16;
@@ -764,8 +911,8 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 					if ( sets[set].m_tree[23] == 0) retValue = 22;
 					else           retValue = 23;  // b6==1
 				 }
-				locVal[retValue] = (plru[12]);    
-			 
+				locVal[retValue] = (plru[12]);
+
 				 if ( sets[set].m_tree[25] == 0)
 				 {
 					if ( sets[set].m_tree[26] == 0) retValue= 24;
@@ -776,7 +923,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 					if ( sets[set].m_tree[27] == 0) retValue = 26;
 					else           retValue = 27;  // b3==1
 				 }
-				locVal[retValue] = (plru[13]);    
+				locVal[retValue] = (plru[13]);
 										   // b0==1
 				 if ( sets[set].m_tree[28] == 0)
 				 {
@@ -787,9 +934,9 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 				 {                            // b4==1
 					if ( sets[set].m_tree[30] == 0) retValue = 30;
 					else           retValue = 31;  // b6==1
-				 }	
-				locVal[retValue] = (plru[14]);  
-				} 
+				 }
+				locVal[retValue] = (plru[14]);
+				}
 				if(range == 4){
 					int plru[8] = {0};
 					plru[0] = sets[set].m_tree[0];
@@ -808,15 +955,15 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 						}
 						if(temp == 3 ) // they are the rank of regions
 							plru[i] = 1;
-						else if(temp == 2) 
+						else if(temp == 2)
 							plru[i] = 2;
-						else if(temp ==1)	
+						else if(temp ==1)
 							plru[i] = 2;
 						else
 							plru[i] = 2;
 						}
-			
-				  
+
+
 					  if ( sets[set].m_tree[2] == 0)
 					  {
 						 if ( sets[set].m_tree[3] == 0)
@@ -843,9 +990,9 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 							else           retValue = 7;  // b6==1
 						 }
 					  }
-						locVal[retValue] = (plru[3]);  
-					
-					
+						locVal[retValue] = (plru[3]);
+
+
 					  if ( sets[set].m_tree[9] == 0)
 					  {
 						 if ( sets[set].m_tree[10] == 0)
@@ -872,8 +1019,8 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 							else           retValue = 15;  // b6==1
 						 }
 					  }
-						locVal[retValue] = (plru[4]);  
-					
+						locVal[retValue] = (plru[4]);
+
 					  if ( sets[set].m_tree[17] == 0)
 					  {
 						 if ( sets[set].m_tree[18] == 0)
@@ -900,8 +1047,8 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 							else           retValue = 23;  // b6==1
 						 }
 					  }
-					
-						locVal[retValue] = (plru[5]);  
+
+						locVal[retValue] = (plru[5]);
 					  if ( sets[set].m_tree[24] == 0)
 					  {
 						 if ( sets[set].m_tree[25] == 0)
@@ -928,7 +1075,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 							else           retValue = 31;  // b6==1
 						 }
 					  }
-					locVal[retValue] = (plru[6]);  					
+					locVal[retValue] = (plru[6]);
 				}
 				 int min_index = 0;
 				 int enc_d = 0;
@@ -940,32 +1087,33 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 				std::vector<int> curfb(5,0);
 			if(options == 4 ){
 				for(UInt32 i = 0 ; i < assoc; i++)
-				{	
+				{
 					int recency = locVal[i];
 						if(recency == 0) recency = 10;
 						//if( range == 0 && recency == 1) recency = 0;
 						//set->read_line(i, 0, read_buff, 64, false);
 						//std::memcpy(blk->data, pkt->getConstPtr<uint8_t>(), blkSize);
 						//enc_d = encodingCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, thres, encodingSize);
-						
-						
+
+
 							if(loc_weight >= 1024 ) //old
 								curfb = lineCompare(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 							else if(loc_weight >= 512 ) // 2bit remmaping
-								curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+								//curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+								curfb = lineCompare_2bit_stateful_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 							else // flip MSB 1 bit
 								curfb = lineCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 								//pq.push(1.084*fb[1]+ 1.084*fb[3] + 2.653*fb[2] + 2.653*fb[3]);
-							
-													
-							double cur = 1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3] + recency * (loc_weight % 512); // new change here ???
+
+
+							double cur = 1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3]; // new change here ???
 							//if(enc_d < 7 )
 							//	cur = 0 + recency * (loc_weight % 512);
 							//int t = (8 * encodingSize) * hd  + recency * loc_weight;
 							//std::cout<< i <<" diff "<<t<<" bits "<<(uint8_t)read_buff[0]<<std::endl;
-							if(cur < lowestDiffBits || ( cur == lowestDiffBits && recency < cur_recency)) { 
+							if(cur < lowestDiffBits || ( cur == lowestDiffBits && recency < cur_recency)) {
 								fb = curfb;
-								lowestDiffBits = cur; 
+								lowestDiffBits = cur;
 								min_index = i;
 								//cur_hd = enc_d;
 								cur_recency = recency;
@@ -976,7 +1124,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 						totalHT[273] += fb[2];
 						totalTT[273] += fb[3];
 						totalReps[273] += 1;
-						
+
 						idx = min_index;
 						blk = sets[set].blks[idx];
 						sets[set].flipBits[idx] = fb[4];
@@ -987,13 +1135,13 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 
 						assert(idx < assoc);
 						assert(idx >= 0);
-						assert(blk->way < allocAssoc);	
-							
-				
+						assert(blk->way < allocAssoc);
+
+
 			}
 			else if(options == 2  or options == 3 ){
 				for(UInt32 i = 0 ; i < assoc; i++)
-				{	
+				{
 					int recency = locVal[i];
 					if(recency != 0 or options == 3 ){
 						if(recency == 0) recency = 10;
@@ -1001,12 +1149,13 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 						//set->read_line(i, 0, read_buff, 64, false);
 						//std::memcpy(blk->data, pkt->getConstPtr<uint8_t>(), blkSize);
 						enc_d = encodingCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, thres, encodingSize);
-						
-						
+
+
 							if(loc_weight >= 1024 ) //old
 								curfb = lineCompare(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 							else if(loc_weight >= 512 ) // 2bit remmaping
-								curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+								//curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+								curfb = lineCompare_2bit_stateful_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 							else // flip MSB 1 bit
 								curfb = lineCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 								//pq.push(1.084*fb[1]+ 1.084*fb[3] + 2.653*fb[2] + 2.653*fb[3]);
@@ -1021,14 +1170,14 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 							totalReps[enc_d] += 1;
 							double cur = 10*(enc_d/numSeg) + diverse_weight*(enc_d%numSeg) + recency * (loc_weight % 512);
 							if(options == 4)
-								cur = 1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3] + recency * (loc_weight % 512);
+								cur = 1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3];
 							//if(enc_d < 7 )
 							//	cur = 0 + recency * (loc_weight % 512);
 							//int t = (8 * encodingSize) * hd  + recency * loc_weight;
 							//std::cout<< i <<" diff "<<t<<" bits "<<(uint8_t)read_buff[0]<<std::endl;
-							if(cur < lowestDiffBits || ( cur == lowestDiffBits && recency < cur_recency)) { 
+							if(cur < lowestDiffBits || ( cur == lowestDiffBits && recency < cur_recency)) {
 								fb = curfb;
-								lowestDiffBits = cur; 
+								lowestDiffBits = cur;
 								min_index = i;
 								cur_hd = enc_d;
 								cur_recency = recency;
@@ -1045,40 +1194,41 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 
 						assert(idx < assoc);
 						assert(idx >= 0);
-						assert(blk->way < allocAssoc);	
-							
-				
-			}	
+						assert(blk->way < allocAssoc);
+
+
+			}
 			else if(options == 0 or options == 1 ){ // options 1 for rank options 0 for normal
 				for(UInt32 i = 0 ; i < assoc; i++)
-				{	
+				{
 					int recency = locVal[i];
 					if(recency != 0 ){
 						//if( range == 0 && recency == 1) recency = 0;
 						//set->read_line(i, 0, read_buff, 64, false);
 						//std::memcpy(blk->data, pkt->getConstPtr<uint8_t>(), blkSize);
 						enc_d = encodingCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, thres, encodingSize);
-						
+
 						if(options == 1 ){ // curfb counts the tt zt and ht
 							if(loc_weight >= 1024 )
 								curfb = lineCompare(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 							else if(loc_weight >= 512 ) // 2bit
-								curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+								//curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+								curfb = lineCompare_2bit_stateful_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 							else // flip MSB 1 bit
 								curfb = lineCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 							pq.push(1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3]);
 						}
 						double cur = 10*(enc_d/numSeg) + diverse_weight*(enc_d%numSeg) + recency * (loc_weight % 512);
-						
+
 					//	if(enc_d < 7 )
 					//		cur = 0 + recency * (loc_weight % 512);
 						//int t = (8 * encodingSize) * hd  + recency * loc_weight;
 						//std::cout<< i <<" diff "<<t<<" bits "<<(uint8_t)read_buff[0]<<std::endl;
-						if(cur < lowestDiffBits || ( cur == lowestDiffBits && recency < cur_recency)) { 
+						if(cur < lowestDiffBits || ( cur == lowestDiffBits && recency < cur_recency)) {
 						//std::cout<< i <<" diff "<<t<<std::endl;
 							//low_en = 1.084*fb[1]+ 1.084*fb[3] + 2.653*fb[2] + 2.653*fb[3];
-							fb = curfb; 
-							lowestDiffBits = cur; 
+							fb = curfb;
+							lowestDiffBits = cur;
 							min_index = i;
 							cur_hd = enc_d;
 							cur_recency = recency;
@@ -1094,7 +1244,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 				totalRanks[rank] += 1;
 				idx = min_index;
 				blk = sets[set].blks[idx];
-				
+
 				while (blk->way >= allocAssoc) {
 					idx = (idx + 1) % assoc;
 					blk = sets[set].blks[idx];
@@ -1103,13 +1253,14 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 				assert(idx < assoc);
 				assert(idx >= 0);
 				assert(blk->way < allocAssoc);
-				
+
 		//assert(!blk || blk->way < allocAssoc);
 				if(options == 0) {
 					if(loc_weight >= 1024 )
 						fb = lineCompare(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 					else if(loc_weight >= 512 ) // 2bit
-						fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+						//fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+						fb = lineCompare_2bit_stateful_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 					else // flip MSB 1 bit
 						fb = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 				}
@@ -1121,32 +1272,33 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 				totalTT[cur_hd] += fb[3];
 				totalReps[enc_d] += 1;
 				sets[set].flipBits[idx] = fb[4];
-				//totalZT[numSeg*numSeg + 1] += fb[0]; 
+				//totalZT[numSeg*numSeg + 1] += fb[0];
 				//totalST[numSeg*numSeg + 1] += fb[1];
 				//totalHT[numSeg*numSeg + 1] += fb[2];
 				//totalZT[numSeg*numSeg + 1] += fb[3];
-				
+
 				//avgZT[cur_hd] = fb[0];
 				//avgST[cur_hd] = fb[1];
 				//avgHT[cur_hd] = fb[2];
 				//avgTT[cur_hd] = fb[3];
-				
+
 				//avgZT[numSeg*numSeg + 1] = fb[0];
 				//avgST[numSeg*numSeg + 1] = fb[1];
 				//avgHT[numSeg*numSeg + 1] = fb[2];
 				//avgTT[numSeg*numSeg + 1] = fb[3];
 					//avgFlipbits[cur_hd] = fb;
 				DPRINTF(CacheRepl, "set %x: selecting blk %x for plru replacement with hd = %d %d %d %d \n", set, regenerateBlkAddr(blk->tag, set), cur_hd, fb[0], fb[1], fb[2], fb[3]);
-			}	
+			}
 		}else{
-			
+
 				if(loc_weight >= 1024 )
 					fb = lineCompare(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 				else if(loc_weight >= 512 ) // 2bit
-					fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+					//fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+					fb = lineCompare_2bit_stateful_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 				else // flip MSB 1 bit
 					fb = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
-			
+
 			sets[set].flipBits[idx] = fb[4];
 			totalZT[271] += fb[0];
 			totalST[271] += fb[1];
@@ -1161,10 +1313,10 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 			//avgST[numSeg*numSeg + 1] = fb[1];
 			//avgHT[numSeg*numSeg + 1] = fb[2];
 			//avgTT[numSeg*numSeg + 1] = fb[3];
-			DPRINTF(CacheRepl, "set %x: selecting blk %x for plru replacement a invalid one with hd = %d %d %d %d \n", set, regenerateBlkAddr(blk->tag, set), 0, fb[0], fb[1], fb[2], fb[3]);	
+			DPRINTF(CacheRepl, "set %x: selecting blk %x for plru replacement a invalid one with hd = %d %d %d %d \n", set, regenerateBlkAddr(blk->tag, set), 0, fb[0], fb[1], fb[2], fb[3]);
 	}
 		//DPRINTF(CacheRepl, "set %x: selecting blk %x for plru replacement with \n", set, regenerateBlkAddr(blk->tag, set));
-			
+
 		return blk;
 }
 
@@ -1176,7 +1328,7 @@ MLC::findVictimPLRU(Addr addr, PacketPtr pkt)
     int set = extractSet(addr);
     // grab a replacement candidate
     BlkType *blk = nullptr;
-    
+
     for (int i = assoc - 1; i >= 0; i--) {
         BlkType *b = sets[set].blks[i];
         if (b->way < allocAssoc) {
@@ -1186,10 +1338,10 @@ MLC::findVictimPLRU(Addr addr, PacketPtr pkt)
     }
     assert(!blk || blk->way < allocAssoc);
     int retValue = -1;
-    
+
     if (blk && blk->isValid()) {//replacement process
-	
-	
+
+
 	   if( assoc == 1 ) retValue = 0;
 	   if (assoc == 4)
 	   {
@@ -1207,7 +1359,7 @@ MLC::findVictimPLRU(Addr addr, PacketPtr pkt)
 	   else if (assoc == 8)
 	   {
 		  if (sets[set].m_tree[0] == 0)
-		  {  
+		  {
 			 if (sets[set].m_tree[1] == 0)
 			 {
 				if (sets[set].m_tree[2] == 0) retValue= 0;
@@ -1296,7 +1448,7 @@ MLC::findVictimPLRU(Addr addr, PacketPtr pkt)
 		else if (assoc == 32)
 		{
 			  if( sets[set].m_tree[0] == 0 ){
-				  
+
 				  if( sets[set].m_tree[1] == 0 )
 				  {
 					  if (sets[set].m_tree[2] == 0)
@@ -1415,12 +1567,12 @@ MLC::findVictimPLRU(Addr addr, PacketPtr pkt)
 					}
 				}
 			}
-		
-	 blk = sets[set].blks[retValue];	
+
+	 blk = sets[set].blks[retValue];
      DPRINTF(CacheRepl, "set %x: selecting blk %x for plru replacement\n",
                 set, regenerateBlkAddr(blk->tag, set));
     }
-    
+
     return blk;
 }
 

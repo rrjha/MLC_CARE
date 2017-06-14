@@ -82,6 +82,7 @@ class MLC : public BaseSetAssoc
     ~MLC() {}
 	static std::vector<int> lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
 	//std::vector<int> lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
+	static std::vector<int> lineCompare_2bit_stateful_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
 	static std::vector<int> lineCompare_2bit_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
 	static std::vector<int> lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int enc);
 	static int encodingCompare(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int thres, int encodingSize);

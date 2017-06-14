@@ -2,7 +2,9 @@
 #LIST="gobmk astar mcf bzip2 h264 hmmer libquantum perlbench gcc xalancbmk lbm milc sphinx3 soplex leslie3d bwaves"
 #LIST="gobmk astar mcf bzip2 h264 hmmer libquantum perlbench gcc xalancbmk lbm milc sphinx3 soplex leslie3d bwaves"
 #LIST="bzip2 mcf soplex perlbench milc lbm astar bwaves hmmer leslie3d gcc cactus xalancbmk gobmk h264"
-LIST="omnetpp"
+#LIST="omnetpp"
+LIST="astar bzip2 cactusADM GemsFDTD gobmk lbm leslie3d mcf omnetpp perlbench sjeng soplex sphinx3 zeusmp"
+#LIST="astar bzip2 cactusADM GemsFDTD gobmk leslie3d omnetpp perlbench sjeng soplex sphinx3 zeusmp"
 #astar/         bzip2/         gem5_data.sh   GemsFDTD/      gobmk/         h264ref/       lbm/           leslie3d/      mcf/           omnetpp/       perlbench/
 #LIST="bzip2 mcf soplex perlbench milc lbm astar bwaves hmmer leslie3d gcc cactus"
 #for a in $LIST
@@ -10,8 +12,8 @@ LIST="omnetpp"
 #	echo "$a"
 #	grep -A 9 -w "0 times" '/media/fd538cb5-97ec-46b1-829f-6aaae01875e3/qi/trace_cache/count_mix/noduel4_mix_LW32_r4_trace-'$a'_16M_32way_f8e8s128d100000t47.txt'
 #	done
-DESIGN="options_380"
-echo "                                       mlc                                        lru"
+DESIGN="options_400"
+#echo "                                       mlc                                        lru"
 for a in $LIST
 do
 	printf "%-15s\t\n" $a

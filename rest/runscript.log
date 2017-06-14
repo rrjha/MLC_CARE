@@ -1,13 +1,13 @@
 Command line:
-/home/rakeshjha/MLC_CARE/gem5/run_options_cp.sh sphinx3 /home/rakeshjha/MLC_CARE/gem5/rest 2200000000000 200000000 389
+/home/rakeshjha/MLC_CARE/gem5/run_options_cp.sh soplex /home/rakeshjha/MLC_CARE/gem5/rest 210000000000 200000000 400
 ================= Hardcoded directories ==================
 GEM5_DIR:                                     /home/rakeshjha/MLC_CARE/gem5
 SPEC_DIR:                                     /home/rakeshjha/MLC_CARE/cpu2006
 ==================== Script inputs =======================
-BENCHMARK:                                    sphinx3
+BENCHMARK:                                    soplex
 OUTPUT_DIR:                                   /home/rakeshjha/MLC_CARE/gem5/rest
 ==========================================================
-Changing to SPEC benchmark runtime directory: /home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/482.sphinx3/run/run_base_ref_my-alpha.0000
+Changing to SPEC benchmark runtime directory: /home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/450.soplex/run/run_base_ref_my-alpha.0000
 
 
 --------- Here goes nothing! Starting gem5! ------------
