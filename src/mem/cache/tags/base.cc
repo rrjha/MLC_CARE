@@ -71,9 +71,9 @@ BaseTags::setCache(BaseCache *_cache)
 void
 BaseTags::regStats()
 {
-    ClockedObject::regStats();
-
     using namespace Stats;
+
+    ClockedObject::regStats();
 
     replacements
         .init(maxThreadsPerCPU)
@@ -118,21 +118,21 @@ BaseTags::regStats()
     for (int i = 0; i < cache->system->maxMasters(); i++) {
         occupancies.subname(i, cache->system->getMasterName(i));
     }
-    //add by qi 
-    
-		
+    //add by qi
+
+
 	avgFlipbits
 		.init(9)
 		.name(name() + ".avg_fb")
-		.desc("average Number of fbs of different Hamming distance HD");	
-		
+		.desc("average Number of fbs of different Hamming distance HD");
+
 	totalFlipbits
 		.init(9)
 		.name(name() + ".total_fb")
 		.desc("toal Number of fbs of different Hamming distance HD")
 		.flags(total | nonan);
-		
-		
+
+
 	totalZT
 		.init(274)
 		.name(name() + ".total_ZT")
@@ -153,19 +153,19 @@ BaseTags::regStats()
 		.name(name() + ".total_TT")
 		.desc("toal Number of TT of different Hamming distance HD")
 		.flags(total | nonan);
-		
+
 	totalReps
 		.init(274)
 		.name(name() + ".total_Reps")
 		.desc("toal Number of Reps of different Hamming distance HD")
 		.flags(total | nonan);
-		
+
 	totalRanks
 		.init(5)
 		.name(name() + ".total_ranks")
         .desc("Total number of eranks.")
         .flags(total | nonan);
-        
+
     totalInvalidFill
 		.name(name() + ".total_invalid_fill")
         .desc("Total number of total_invalid_fills.")
@@ -181,6 +181,29 @@ BaseTags::regStats()
 		.desc("total Number of 4 transitions if optimamized")
 		.flags(total | nonan);
 
+	dd_energy_profile
+		.init(5)
+		.name(name() + ".dd_profile_data")
+		.desc("Total number of DD and corresponding values of ZT, ST, HT and TT for it")
+		.flags(total | nonan);
+
+	du_energy_profile
+		.init(5)
+		.name(name() + ".du_profile_data")
+		.desc("Total number of DU and corresponding values of ZT, ST, HT and TT for it")
+		.flags(total | nonan);
+
+	ud_energy_profile
+		.init(5)
+		.name(name() + ".ud_profile_data")
+		.desc("Total number of DD and corresponding values of ZT, ST, HT and TT for it")
+		.flags(total | nonan);
+
+	uu_energy_profile
+		.init(5)
+		.name(name() + ".uu_profile_data")
+		.desc("Total number of UU and corresponding values of ZT, ST, HT and TT for it")
+		.flags(total | nonan);
 
     avgOccs
         .name(name() + ".occ_percent")

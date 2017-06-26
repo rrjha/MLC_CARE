@@ -249,6 +249,10 @@ def config_cache(options, system):
 		system.l3.tags = MLC(loc_weight = 1022,flipSize = 8,encodingSize = 8,thres = 25, options = 2, diverse_weight = 8.0 )
 	if options.l3_tags == 400: #get rank by 2bit flip mlc flip_size=4
                 system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 1)
+	if options.l3_tags == 410: #get rank by 2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 1)
+	if options.l3_tags == 430: #get rank by 2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 1)
 
     for i in xrange(options.num_cpus):
         if options.caches:

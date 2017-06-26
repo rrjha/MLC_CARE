@@ -65,6 +65,7 @@ class MLC : public BaseSetAssoc
 	  int loc_weight;
 	  double diverse_weight;
 	  int options;
+	  unsigned int curr_blk_enc_trans;
   public:
     /** Convenience typedef. */
     typedef MLCParams Params;
@@ -80,12 +81,12 @@ class MLC : public BaseSetAssoc
      * Destructor
      */
     ~MLC() {}
-	static std::vector<int> lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
+	/*static*/ std::vector<int> lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
 	//std::vector<int> lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
-	static std::vector<int> lineCompare_2bit_stateful_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
-	static std::vector<int> lineCompare_2bit_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
-	static std::vector<int> lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int enc);
-	static int encodingCompare(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int thres, int encodingSize);
+	/*static*/ std::vector<int> lineCompare_2bit_stateful_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
+	/*static*/ std::vector<int> lineCompare_2bit_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
+	/*static*/ std::vector<int> lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int enc);
+	/*static*/ int encodingCompare(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int thres, int encodingSize);
 	int encodingCompare_2bit(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int thres, int encodingSize, int zeroWeight = 0);
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat,
                          int context_src);

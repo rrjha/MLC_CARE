@@ -199,6 +199,7 @@ int MLC::encodingCompare_2bit(const Byte* ablock, const Byte* bblock, int size, 
 	//for (int i =0; i<size; i += shiftSize) {
 		//Byte temp;
 	int numSeg = (size/encodingSize) + 1;
+	curr_blk_enc_trans = 0; //init the encoding state change from A to B as all 0s
 	double total_diff = 0;
 		int abits = 0, bbits = 0;
 	if(thres >= 0){	// count the #01 and 00
@@ -212,6 +213,7 @@ int MLC::encodingCompare_2bit(const Byte* ablock, const Byte* bblock, int size, 
 					else abits = 0;
 					if(bbits > thres or bbits < (encodingSize*4 - thres) ) bbits = 1;
 					else bbits = 0;
+					curr_blk_enc_trans = (curr_blk_enc_trans << 2) | (abits << 1) | bbits;
 					if(abits != bbits) total_diff += numSeg;
 					else if( abits == 0) total_diff += 1;
 					abits = 0;
@@ -429,7 +431,7 @@ const double energy_val[4] = {/*ZT*/ 0, /*ST*/ 1.92, /*HT*/ 3.192, /*TT*/ 3.192+
 
 /* Currently we calculate actual energy with this floating point calculation *
  * We need to modify this function for calculating cost intelligently. At the*
- * least we can use integers in approximate ration of energies for various   *
+ * least we can use integers in approximate ratio of energies for various   *
  * energy transitions                                                        */
 double energy_cost(ERemapSchemes aRemapScheme, std::unordered_map<int, int>& aCountMap) {
     int i=0, j=0, s=0;
@@ -455,6 +457,19 @@ void increment_state_transitions(ERemapSchemes aRemapScheme, std::unordered_map<
             res[i] += aCountMap[tbl_ptr[i][j]];
         }
     }
+}
+
+void update_energy_profile(ERemapSchemes aRemapScheme, std::unordered_map<int, int>& aCountMap, Stats::Vector& bucket) {
+    int i=0, j=0;
+    int (*tbl_ptr)[4] = remap_energy_tbl[aRemapScheme];
+
+    for(i=0; i < 4; i++) {
+        for (j=0; j < 4; j++) {
+            bucket[i] += aCountMap[tbl_ptr[i][j]];
+        }
+    }
+    /* Now update the total count of this transition */
+    bucket[4]++;
 }
 
 std::vector<int> MLC::lineCompare_2bit_stateful_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){
@@ -495,6 +510,30 @@ std::vector<int> MLC::lineCompare_2bit_stateful_mapping( const Byte* ablock, con
             }
             res[4] = ((res[4] << 2) | finalScheme);
             increment_state_transitions((ERemapSchemes)finalScheme, normal_cnt, res);
+
+            /* Get the encoding for chunk at same position of incoming and outgoing block to give a two-tuple from 0-3 */
+            int trans_idx = (curr_blk_enc_trans >> 30) & 3;
+            switch(trans_idx) {
+            case 0:
+                //DD
+                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, dd_energy_profile);
+                break;
+            case 1:
+                //DU
+                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, du_energy_profile);
+                break;
+            case 2:
+                //UD
+                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, ud_energy_profile);
+                break;
+            case 3:
+                //UU
+                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, uu_energy_profile);
+                break;
+            default:
+                assert(1);
+            }
+            curr_blk_enc_trans <<= 2;
 
             mask = mask -2;
             ifFlip = (flipBits >> mask) & 3; // update the ifPlip for next chunk

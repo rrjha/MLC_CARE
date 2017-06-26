@@ -12,11 +12,11 @@ LIST="astar bzip2 cactusADM GemsFDTD gobmk lbm leslie3d mcf omnetpp perlbench sj
 #	echo "$a"
 #	grep -A 9 -w "0 times" '/media/fd538cb5-97ec-46b1-829f-6aaae01875e3/qi/trace_cache/count_mix/noduel4_mix_LW32_r4_trace-'$a'_16M_32way_f8e8s128d100000t47.txt'
 #	done
-DESIGN="options_400"
+DESIGN="options_410"
 #echo "                                       mlc                                        lru"
 for a in $LIST
 do
-	printf "%-15s\t\n" $a
+	printf "%-15s\t" $a
 	ds=0
 #	sed '2q;d' 'mix_encodingNLRU_LW'$ds'_r4_trace-'$a'_16M_32way_f0_t12.txt'	| 	awk '{printf "%5.2f\t", $4} END {if(!NR) printf "%9s\t", " "}' 
 #	sed '3q;d' 'mix_encodingNLRU_LW'$ds'_r4_trace-'$a'_16M_32way_f0_t12.txt'	| 	awk '{printf "%5.2f\t", $4} END {if(!NR) printf "%9s\t", " "}' 
@@ -25,7 +25,7 @@ do
 	#sed '17q;d' 'mix_encodingNLRU_LW'$ds'_r4_trace-'$a'_16M_32way_f0_t25.txt'	| 	awk '{printf "%9.4f\t", $4} END {if(!NR) printf "%9s\t", " "}' 
 	for ds in $DESIGN
 	do
-                printf "%-15s\t" $ds
+                #printf "%-15s\t" $ds
 
 		#grep  "system.l3.tags.avg_ZT::257" $a/$ds/stats.txt	| 	awk '{printf "%5.2f\t", $2} END {if(!NR) printf "%9s\t", " "}' 
 		#grep  "system.l3.tags.avg_ST::257" $a/$ds/stats.txt	| 	awk '{printf "%5.2f\t", $2} END {if(!NR) printf "%9s\t", " "}' 
