@@ -201,22 +201,24 @@ int MLC::generate_encoding(const Byte* blk_data, int blk_size, const int encodin
     for(int i = 0; i < blk_size; i++) {
         for(int j = 0; j < 8; j+=2) {
             if(blk_data[i] & (1<<j))
-                hibit++
+                hibit++;
         }
         if(((i+1)%encodingSize) == 0) {
             /* One chunk processed */
             encoding = (encoding << 1) | (hibit > thres or hibit < (encodingSize*4 - thres));
+            encoding = 0; //reset to start new chunk
         }
     }
     return encoding;
 }
 
-int MLC::encodingCompare_exact(const Byte* block, int size, int victim_encoding, int victim_flipbits, const int encodingSize, int thres) {
+int MLC::encodingCompare_exact(const Byte* ablock, const Byte* bblock, int size, int victim_flipbits, const int encodingSize, int thres) {
 	double total_diff = 0;
 	int minimal_diff = 2000000; // Not sure if we need minimal diff but retaining for compatibility, if any
 	if((thres >= 0) && encodingSize > 0){
         int numSeg = (size/encodingSize) + 1;
-        int encoding = generate_encoding(block, size, encodingSize, thres);
+        int victim_encoding = generate_encoding(ablock, size, encodingSize, thres);
+        int encoding = generate_encoding(bblock, size, encodingSize, thres);
         int vreal_enc = 0;
         /* Traverse flipbits and victim encoding at the same time and apply correction */
         for(int i = (numSeg-2); i >= 0; i--) {
@@ -227,7 +229,7 @@ int MLC::encodingCompare_exact(const Byte* block, int size, int victim_encoding,
             else
                 vreal_enc = (vreal_enc << 1) | ((victim_encoding >> i) & 1);
         }
-	    /* Compare each bit of encoding generated on the fly and victim block encoding */
+	    /* Compare each bit of encoding generated for to block and corrected encoding for victim block */
 	    for(int i = (numSeg-2); i >= 0; i--) { //decrement start by 2 as we already incremented numSeg by 1
             if(((encoding >> i)&1) != ((vreal_enc >> i)&1))
                 total_diff += numSeg;
@@ -532,10 +534,11 @@ int st_trans_remap_energy_tbl[4][4][4] = {
  * We need to modify this function for calculating cost intelligently. At the*
  * least we can use integers in approximate ratio of energies for various   *
  * energy transitions                                                        */
-double energy_cost(ERemapSchemes aRemapScheme, std::unordered_map<int, int>& aCountMap) {
+double energy_cost(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap) {
     int i=0, j=0, s=0;
-    int (*tbl_ptr)[4] = remap_energy_tbl[aRemapScheme];
     double energy = 0;
+    int (*tbl_ptr)[4];
+    tbl_ptr = (statepreserving == true) ? remap_energy_tbl[aRemapScheme] : st_trans_remap_energy_tbl[aRemapScheme];
 
     for(i=0; i < 4; i++) {
         s = 0;
@@ -547,9 +550,10 @@ double energy_cost(ERemapSchemes aRemapScheme, std::unordered_map<int, int>& aCo
     return energy;
 }
 
-void increment_state_transitions(ERemapSchemes aRemapScheme, std::unordered_map<int, int>& aCountMap, std::vector<int>& res) {
+void increment_state_transitions(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap, std::vector<int>& res) {
     int i=0, j=0;
-    int (*tbl_ptr)[4] = remap_energy_tbl[aRemapScheme];
+    int (*tbl_ptr)[4];
+    tbl_ptr = (statepreserving == true) ? remap_energy_tbl[aRemapScheme] : st_trans_remap_energy_tbl[aRemapScheme];
 
     for(i=0; i < 4; i++) {
         for (j=0; j < 4; j++) {
@@ -571,6 +575,19 @@ void update_energy_profile(ERemapSchemes aRemapScheme, std::unordered_map<int, i
     bucket[4]++;
 }
 
+bool MLC::isencodingU(const Byte* chunk, int chunkSize, uint8_t remapScheme, int thres) {
+    int hibit = 0;
+    for(int i=0; i < chunkSize; i++) {
+        for(int j=0; j < 8; j+=2) {
+            int before = (chunk[i] >> j) & 3;
+            int after = statetrans_remaps[remapScheme][before];
+            hibit = hibit + ((after >> 1) & 1);
+        }
+    }
+    return (hibit > thres or hibit < (chunkSize*4 - thres));
+}
+
+
 std::vector<int> MLC::lineCompare_2bit_enc_based_mapping(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits, int thres){
     int mask = 0;
     int fs = flipSize; // the size the chunk , if flipsize iis 0 means no flip
@@ -578,10 +595,10 @@ std::vector<int> MLC::lineCompare_2bit_enc_based_mapping(const Byte* ablock, con
     else
         mask = 2*(size/fs) - 2;
     std::unordered_map<int, int> normal_cnt;
-    std::vector<int> ret(6, 512);
+    std::vector<int> ret(5, 512);
     ret[4] = 0;
     Byte from, to;
-    std::vector<int> res(6,0);// ZT, ST, HT, TT, remapping bits and encoding bits
+    std::vector<int> res(5,0);// ZT, ST, HT, TT, remapping bits
     int initial_enc = generate_encoding(bblock, size, encodingSize, thres);
     int ifFlip = (flipBits >>mask) &3; // ifFlip records the flip option information, because in the block I stored the real content, we need remmaped it back to cell content.
     int encbit = (initial_enc >> (mask/2)) & 1;
@@ -589,53 +606,34 @@ std::vector<int> MLC::lineCompare_2bit_enc_based_mapping(const Byte* ablock, con
         from = ablock[j]; // from block
         to = bblock[j]; // to is the new block
 
-
         for(int k = 0; k<8; k += 2)  { // for each 2-bit inside a byte
             int label_fr = (((from >> k) & 3));
             int label_to =  ((to >> k) & 3); // 3 for 0b11
 
-            int label = (stateful_remaps[ifFlip][label_fr])*10 + label_to; // so we use label to indicate the 2-bit old cell content and 2-bit new real content
+            int label = (encbit == 1) ? ((stateful_remaps[ifFlip][label_fr])*10 + label_to) : ((statetrans_remaps[ifFlip][label_fr])*10 + label_to); // so we use label to indicate the 2-bit old cell content and 2-bit new real content
             normal_cnt[label] += 1;
         }
 
         if(fs <= size && (j+1)% fs == 0 ){ // when the byte is multiple of chunk size , need to decide if we flip this chunk
         //Flip decision is made by the count. Rakesh you need change the decision logic here
             double min_energy = 256*energy_val[ETT]; //Some high value to start with
-            int finalScheme = 0;
-            for(int scheme = ENOREMAP; scheme < EREMAPINVALID; scheme++) {
-                double temp = energy_cost((ERemapSchemes)scheme, normal_cnt);
+            uint8_t finalScheme = 0;
+            uint8_t start_scheme = (encbit == 1) ? (uint8_t)ENOREMAP : (uint8_t)ESTNOREMAP;
+            uint8_t end_scheme = (encbit == 1) ? (uint8_t)EREMAPINVALID : (uint8_t)ESTREMAPINVALID;
+            for(uint8_t scheme = start_scheme; scheme < end_scheme; scheme++) {
+                double temp = energy_cost(encbit, scheme, normal_cnt);
                 if(temp < min_energy) {
                     finalScheme = scheme;
                     min_energy = temp;
                 }
             }
+            /* Check if the final scheme ensures change of state to "U" for this "D" chunk */
+            if((encbit == 0) && (finalScheme != 0) &&
+               !(isencodingU(bblock+j+1-fs, fs, finalScheme, thres)))
+                finalScheme = 0;
+
+            increment_state_transitions(encbit, finalScheme, normal_cnt, res);
             res[4] = ((res[4] << 2) | finalScheme);
-            increment_state_transitions((ERemapSchemes)finalScheme, normal_cnt, res);
-
-            /* Get the encoding for chunk at same position of incoming and outgoing block to give a two-tuple from 0-3 */
-            int trans_idx = (curr_blk_enc_trans >> 30) & 3;
-            switch(trans_idx) {
-            case 0:
-                //DD
-                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, dd_energy_profile);
-                break;
-            case 1:
-                //DU
-                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, du_energy_profile);
-                break;
-            case 2:
-                //UD
-                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, ud_energy_profile);
-                break;
-            case 3:
-                //UU
-                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, uu_energy_profile);
-                break;
-            default:
-                assert(1);
-            }
-            curr_blk_enc_trans <<= 2;
-
             mask = mask -2;
             ifFlip = (flipBits >> mask) & 3; // update the ifPlip for next chunk
             encbit = (initial_enc >> (mask/2)) & 1; //update enc for next chunk
@@ -689,16 +687,16 @@ std::vector<int> MLC::lineCompare_2bit_stateful_mapping( const Byte* ablock, con
         if(fs <= size && (j+1)% fs == 0 ){ // when the byte is multiple of chunk size , need to decide if we flip this chunk
         //Flip decision is made by the count. Rakesh you need change the decision logic here
             double min_energy = 256*energy_val[ETT]; //Some high value to start with
-            int finalScheme = 0;
-            for(int scheme = ENOREMAP; scheme < EREMAPINVALID; scheme++) {
-                double temp = energy_cost((ERemapSchemes)scheme, normal_cnt);
+            uint8_t finalScheme = 0;
+            for(uint8_t scheme = ENOREMAP; scheme < EREMAPINVALID; scheme++) {
+                double temp = energy_cost(true, scheme, normal_cnt);
                 if(temp < min_energy) {
                     finalScheme = scheme;
                     min_energy = temp;
                 }
             }
             res[4] = ((res[4] << 2) | finalScheme);
-            increment_state_transitions((ERemapSchemes)finalScheme, normal_cnt, res);
+            increment_state_transitions(true, finalScheme, normal_cnt, res);
 
             /* Get the encoding for chunk at same position of incoming and outgoing block to give a two-tuple from 0-3 */
             int trans_idx = (curr_blk_enc_trans >> 30) & 3;
@@ -1679,7 +1677,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 
 
 			}
-			else if(options == 0 or options == 1 or options == 5 or options == 6 or options == 7 or options == 8){ // options 1 for rank options 0 for normal
+			else if(options == 0 or options == 1 or options == 5 or options == 6 or options == 7 or options == 8 or options == 9 or options == 10){ // options 1 for rank options 0 for normal
                 int lru_index = -1;
 				for(UInt32 i = 0 ; i < assoc; i++)
 				{
@@ -1690,9 +1688,12 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 						//if( range == 0 && recency == 1) recency = 0;
 						//set->read_line(i, 0, read_buff, 64, false);
 						//std::memcpy(blk->data, pkt->getConstPtr<uint8_t>(), blkSize);
-						enc_d = encodingCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, thres, encodingSize);
+						if((options != 9) && (options != 10))
+                            enc_d = encodingCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, thres, encodingSize);
+                        else
+                            enc_d = encodingCompare_exact(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, sets[set].flipBits[idx], encodingSize, thres);
 
-						if(options == 1 or options == 7 or options == 8){ // curfb counts the tt zt and ht
+						if(options == 1 or options == 7 or options == 8 or options == 10){ // curfb counts the tt zt and ht
 							/*if(loc_weight >= 1024 )
 								curfb = lineCompare(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 							else if(loc_weight >= 512 ) // 2bit*/
@@ -1701,8 +1702,10 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 								curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 							else if (options == 7)
 								curfb = lineCompare_2bit_stateful_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
-							else
+							else if(options == 8)
 								curfb = lineCompare_blk_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+                            else //options == 10
+                                curfb = lineCompare_2bit_enc_based_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx], thres);
 							/*else // flip MSB 1 bit
 								curfb = lineCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);*/
 							pq.push(1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3]);
@@ -1725,7 +1728,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 					}
 				}
 				int rank = 1;
-				if( options == 1 or options == 7 or options == 8 )
+				if( options == 1 or options == 7 or options == 8 or options == 10)
 					while( !pq.empty() && (1.92*fb[1]+ 1.92*fb[3] + 3.192*fb[2] + 3.192*fb[3]) > pq.top()){
 						pq.pop();
 						rank++;
@@ -1752,17 +1755,19 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 				assert(blk->way < allocAssoc);
 
 		//assert(!blk || blk->way < allocAssoc);
-				if(options == 0 or options == 5 or options == 6) {
+				if(options == 0 or options == 5 or options == 6 or options == 9) {
 					/*if(loc_weight >= 1024 )
 						fb = lineCompare(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 					else if(loc_weight >= 512 ) // 2bit*/
 						//fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 					if(options == 0)
 						fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
-					if(options == 5)
+					else if(options == 5)
 						fb = lineCompare_2bit_stateful_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
-					if(options == 6)
+					else if(options == 6)
 						fb = lineCompare_blk_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+                    else //options == 9
+                        fb = lineCompare_2bit_enc_based_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx], thres);
 					/*else // flip MSB 1 bit
 						fb = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);*/
 				}

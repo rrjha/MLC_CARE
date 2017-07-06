@@ -1,57 +1,15 @@
 Command line:
-/home/rakeshjha/MLC_CARE/gem5/run_options_cp.sh gobmk /home/rakeshjha/MLC_CARE/gem5/rest 53000000000 200000000 510
-/home/rakeshjha/MLC_CARE/gem5/run_options_cp.sh GemsFDTD /home/rakeshjha/MLC_CARE/gem5/rest 430000000000 200000000 510
-/home/rakeshjha/MLC_CARE/gem5/run_options_cp.sh omnetpp /home/rakeshjha/MLC_CARE/gem5/rest 377200000000 200000000 510
-/home/rakeshjha/MLC_CARE/gem5/run_options_cp.sh zeusmp /home/rakeshjha/MLC_CARE/gem5/rest 350000000000 200000000 510
-================= Hardcoded directories ==================
-================= Hardcoded directories ==================
-================= Hardcoded directories ==================
+/home/rakeshjha/MLC_CARE/gem5/run_options_cp.sh sjeng /home/rakeshjha/MLC_CARE/gem5/rest 1200000000000 200000000 520
 ================= Hardcoded directories ==================
 GEM5_DIR:                                     /home/rakeshjha/MLC_CARE/gem5
-GEM5_DIR:                                     /home/rakeshjha/MLC_CARE/gem5
-GEM5_DIR:                                     /home/rakeshjha/MLC_CARE/gem5
-GEM5_DIR:                                     /home/rakeshjha/MLC_CARE/gem5
-SPEC_DIR:                                     /home/rakeshjha/MLC_CARE/cpu2006
-SPEC_DIR:                                     /home/rakeshjha/MLC_CARE/cpu2006
-SPEC_DIR:                                     /home/rakeshjha/MLC_CARE/cpu2006
 SPEC_DIR:                                     /home/rakeshjha/MLC_CARE/cpu2006
 ==================== Script inputs =======================
-==================== Script inputs =======================
-==================== Script inputs =======================
-==================== Script inputs =======================
-BENCHMARK:                                    gobmk
-BENCHMARK:                                    GemsFDTD
-BENCHMARK:                                    zeusmp
-BENCHMARK:                                    omnetpp
-OUTPUT_DIR:                                   /home/rakeshjha/MLC_CARE/gem5/rest
-OUTPUT_DIR:                                   /home/rakeshjha/MLC_CARE/gem5/rest
-OUTPUT_DIR:                                   /home/rakeshjha/MLC_CARE/gem5/rest
+BENCHMARK:                                    sjeng
 OUTPUT_DIR:                                   /home/rakeshjha/MLC_CARE/gem5/rest
 ==========================================================
-==========================================================
-==========================================================
-==========================================================
-Changing to SPEC benchmark runtime directory: /home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_my-alpha.0000
-Changing to SPEC benchmark runtime directory: /home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/459.GemsFDTD/run/run_base_ref_my-alpha.0000
-Changing to SPEC benchmark runtime directory: /home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/434.zeusmp/run/run_base_ref_my-alpha.0000
-Changing to SPEC benchmark runtime directory: /home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/471.omnetpp/run/run_base_ref_my-alpha.0000
-
-
-
-
-
-
+Changing to SPEC benchmark runtime directory: /home/rakeshjha/MLC_CARE/cpu2006/benchspec/CPU2006/458.sjeng/run/run_base_ref_my-alpha.0000
 
 
 --------- Here goes nothing! Starting gem5! ------------
---------- Here goes nothing! Starting gem5! ------------
---------- Here goes nothing! Starting gem5! ------------
---------- Here goes nothing! Starting gem5! ------------
-
-
-
-
-
-
 
 

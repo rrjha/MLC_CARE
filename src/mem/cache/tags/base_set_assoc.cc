@@ -98,7 +98,7 @@ BaseSetAssoc::BaseSetAssoc(const Params *p)
         sets[i].assoc = assoc;
         sets[i].m_tree = new uint8_t[assoc];
         sets[i].flipBits = new int[assoc]();
-        sets[i].encBits = new int[assoc](); //allocate and assign 0, () is must to ensure default assignment of 0
+//        sets[i].encBits = new int[assoc](); //allocate and assign 0, () is must to ensure default assignment of 0
         sets[i].blks = new BlkType*[assoc];
 
         // link in the data blocks

@@ -64,7 +64,7 @@ class CacheSet
     Blktype **blks;
 	uint8_t* m_tree;
 	int* flipBits;
-	int* encBits;
+//	int* encBits;
     /**
      * Find a block matching the tag in this set.
      * @param way_id The id of the way that matches the tag.

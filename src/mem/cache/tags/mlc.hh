@@ -88,9 +88,11 @@ class MLC : public BaseSetAssoc
 	/*static*/ std::vector<int> lineCompare_2bit_stateful_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
 	/*static*/ std::vector<int> lineCompare_2bit_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits);
 	/*static*/ std::vector<int> lineCompare_2bit( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int enc);
+               std::vector<int> lineCompare_2bit_enc_based_mapping(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits, int thres);
+
 	/*static*/ int encodingCompare(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int thres, int encodingSize);
 	int encodingCompare_2bit(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int thres, int encodingSize, int zeroWeight = 0);
-    int MLC::encodingCompare_exact(const Byte* block, int size, int victim_encoding, const int encodingSize, int thres);
+    int encodingCompare_exact(const Byte* ablock, const Byte* bblock, int size, int victim_flipbits, const int encodingSize, int thres);
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat,
                          int context_src);
     CacheBlk* findVictim(Addr addr, PacketPtr pkt = nullptr);
@@ -99,7 +101,8 @@ class MLC : public BaseSetAssoc
     void invalidate(CacheBlk *blk);
 
   private:
-    int MLC::generate_encoding(const Byte* blk_data, int blk_size, const int encodingSize, int thres);
+    int generate_encoding(const Byte* blk_data, int blk_size, const int encodingSize, int thres);
+    bool isencodingU(const Byte* chunk, int chunkSize, uint8_t remapScheme, int thres);
 };
 
 #endif // __MEM_CACHE_TAGS_MLC_HH__
