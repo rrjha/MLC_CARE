@@ -59,11 +59,12 @@ class CacheSet
   public:
     /** The associativity of this set. */
     int assoc;
-	
+
     /** Cache blocks in this set, maintained in LRU order 0 = MRU. */
     Blktype **blks;
 	uint8_t* m_tree;
 	int* flipBits;
+	int* encBits;
     /**
      * Find a block matching the tag in this set.
      * @param way_id The id of the way that matches the tag.
@@ -157,7 +158,7 @@ CacheSet<Blktype>::moveToFront(Blktype *blk) // Pseudo LRU
     } while (next != blk);
     accessed_index = i-1;
 	assert(accessed_index != -1);
-    
+
 	if (assoc == 4)
 	{
       if      (accessed_index==0) { m_tree[0]=1;m_tree[1]=1;     }
@@ -213,7 +214,7 @@ CacheSet<Blktype>::moveToFront(Blktype *blk) // Pseudo LRU
       else if (accessed_index==13) { m_tree[0]=1; m_tree[1]=0; m_tree[9]=0;                     m_tree[13]=1;m_tree[14]=0;       }
       else if (accessed_index==14) { m_tree[0]=1; m_tree[1]=0; m_tree[9]=0;                     m_tree[13]=0;       m_tree[15]=1;}
       else if (accessed_index==15) { m_tree[0]=1; m_tree[1]=0; m_tree[9]=0;                     m_tree[13]=0;       m_tree[15]=0;}
-      
+
       else if (accessed_index== 16) { m_tree[0]=0; m_tree[16]=1;m_tree[17]=1;m_tree[18]=1;m_tree[19]=1;                           } // 0000 00001
       else if (accessed_index== 17) { m_tree[0]=0; m_tree[16]=1;m_tree[17]=1;m_tree[18]=1;m_tree[19]=0;                            }
       else if (accessed_index== 18) { m_tree[0]=0; m_tree[16]=1;m_tree[17]=1;m_tree[18]=0;       m_tree[20]=1;                     }
@@ -232,13 +233,13 @@ CacheSet<Blktype>::moveToFront(Blktype *blk) // Pseudo LRU
       else if (accessed_index==31) { m_tree[0]=0; m_tree[16]=0; m_tree[24]=0;                     m_tree[28]=0;       m_tree[30]=0;}
    }
    else
-   { 
+   {
 	   return;
      // LOG_PRINT_ERROR("PLRU doesn't support associativity %d", assoc);
    }
    return;
-    
-    
+
+
 }
 
 template <class Blktype>
@@ -261,7 +262,7 @@ CacheSet<Blktype>::moveToTail(Blktype *blk)
         std::swap(blks[i], next);
         --i;
     } while (next != blk);
-    
+
 }
 
 #endif

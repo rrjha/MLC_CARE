@@ -253,6 +253,28 @@ def config_cache(options, system):
                 system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 1)
 	if options.l3_tags == 430: #get rank by 2bit flip mlc flip_size=4
                 system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 1)
+	if options.l3_tags == 450: #get rank by 2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 1)
+	if options.l3_tags == 451: #get rank by 2bit flip mlc flip_size=4
+                system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 1)
+	if options.l3_tags == 500: #CARE with curve fitting and MICRO remaps
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 0)
+	if options.l3_tags == 501: #CARE with UU based selection and state preserving remaps, LRU fall back threshold = 0
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 5, UUthres=0)
+	if options.l3_tags == 502: #CARE with UU based selection and state preserving remaps, LRU fall back threshold = 1
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 5, UUthres=1)
+	if options.l3_tags == 505: #CARE with curve fitting and state preserving remaps
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 5)
+	if options.l3_tags == 503: #CARE with UU based selection and block based remaps, LRU fall back threshold = 0
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 6, UUthres=0)
+	if options.l3_tags == 504: #CARE with UU based selection and block based remaps, LRU fall back threshold = 1
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 6, UUthres=0)
+	if options.l3_tags == 506: #CARE with curve fitting and block based remaps
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 8.0, options = 6)
+	if options.l3_tags == 507: #CARE with UU based selection and state preserving remaps, LRU fall back threshold = 0
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 5, UUthres=2)
+	if options.l3_tags == 508: #CARE with UU based selection and state preserving remaps, LRU fall back threshold = 0
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 5, UUthres=3)
 
     for i in xrange(options.num_cpus):
         if options.caches:

@@ -88,6 +88,7 @@ class MLC(BaseSetAssoc):
     diverse_weight = Param.Float(5.8, "diverse weight")
     thres = Param.Int(12, "encoding threshold out of 64 ")
     options = Param.Int(0, "replace scheme")
+    UUthres = Param.Int(0, "UU threshold for LRU fallback")
 
 class RandomRepl(BaseSetAssoc):
     type = 'RandomRepl'

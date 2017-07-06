@@ -61,12 +61,13 @@ MLC::MLC(const Params *p)
 	diverse_weight = p->diverse_weight;
 	shiftSize = 64;
 	options = p->options;
+	UUthres = p->UUthres;
 	/*encodingSize = 8;
 	shiftSize = 64;
 	flipSize = 8;
 	thres = 47;
 	loc_weight = 8;*/
-	std::cout<<"MLC "<< diverse_weight<<" "<<loc_weight<<" thres"<< thres<<" "<< encodingSize <<" " <<flipSize <<" options " <<options <<std::endl;
+	std::cout<<"MLC "<< diverse_weight<<" "<<loc_weight<<" thres"<< thres<<" "<< encodingSize <<" " <<flipSize <<" options = " <<options << "UU threshold = " << UUthres <<std::endl;
 	//std::cout<<"sec "<< diverse_weight<<" "<<loc_weight<<" thres"<< thres<<" "<< encodingSize <<" " <<flipSize <<" options " <<options <<std::endl;
 	//std::cout<<"sector "<< secSize <<" entry_size"<<entrySize<<"shift " <<secShift<<std::endl;
 }
@@ -193,6 +194,50 @@ MLC::lineCompare( const Byte* ablock, const Byte* bblock, int size, int shiftSiz
 	assert(ret[3] + ret[2] + ret[0] + ret[1] == 256);
 	return ret;
 }
+
+int MLC::generate_encoding(const Byte* blk_data, int blk_size, const int encodingSize, int thres) {
+    int hibit = 0;
+    int encoding = 0;
+    for(int i = 0; i < blk_size; i++) {
+        for(int j = 0; j < 8; j+=2) {
+            if(blk_data[i] & (1<<j))
+                hibit++
+        }
+        if(((i+1)%encodingSize) == 0) {
+            /* One chunk processed */
+            encoding = (encoding << 1) | (hibit > thres or hibit < (encodingSize*4 - thres));
+        }
+    }
+    return encoding;
+}
+
+int MLC::encodingCompare_exact(const Byte* block, int size, int victim_encoding, int victim_flipbits, const int encodingSize, int thres) {
+	double total_diff = 0;
+	int minimal_diff = 2000000; // Not sure if we need minimal diff but retaining for compatibility, if any
+	if((thres >= 0) && encodingSize > 0){
+        int numSeg = (size/encodingSize) + 1;
+        int encoding = generate_encoding(block, size, encodingSize, thres);
+        int vreal_enc = 0;
+        /* Traverse flipbits and victim encoding at the same time and apply correction */
+        for(int i = (numSeg-2); i >= 0; i--) {
+            if((((victim_encoding >> i) & 1) == 0) &&
+               (((victim_flipbits >> 2*i) & 3) != 0))
+                /* Got a "Diverse" that is actually "U" after remap */
+                vreal_enc = (vreal_enc << 1) | 1;
+            else
+                vreal_enc = (vreal_enc << 1) | ((victim_encoding >> i) & 1);
+        }
+	    /* Compare each bit of encoding generated on the fly and victim block encoding */
+	    for(int i = (numSeg-2); i >= 0; i--) { //decrement start by 2 as we already incremented numSeg by 1
+            if(((encoding >> i)&1) != ((vreal_enc >> i)&1))
+                total_diff += numSeg;
+            else if(((encoding >> i)&1) == 0)
+                total_diff++;
+	    }
+	}
+	return (minimal_diff = (total_diff < minimal_diff)? total_diff : minimal_diff);
+}
+
 int MLC::encodingCompare_2bit(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int thres, int encodingSize, int zeroWeight){
 	if(flipSize == 0 ) flipSize = size+1;
 	int minimal_diff = 2000000;
@@ -372,6 +417,16 @@ std::vector<int> MLC::lineCompare_2bit_mapping( const Byte* ablock, const Byte* 
 	assert(ret[3] + ret[2] + ret[0] + ret[1] == 256);
 	return ret;
 }
+
+enum EStateTrans {
+    EZT,
+    EST,
+    EHT,
+    ETT
+};
+
+const double energy_val[4] = {/*ZT*/ 0, /*ST*/ 1.92, /*HT*/ 3.192, /*TT*/ 3.192+1.92};
+
 /* Stateful mapping schemes */
 /** NO REMAP    (00)    :        L00->R00, L01->R01, L10->R10, L11->R11 **/
 /** FLIP ALL    (01)    :        L00->R11, L01->R10, L10->R01, L11->R00 **/
@@ -390,12 +445,7 @@ int stateful_remaps[4][4] = {   {0, 1, 2, 3},   /*  NO REMAP    */
                                 {3, 2, 1, 0},   /*  FLIP ALL    */
                                 {2, 3, 0, 1},   /*  FLIP HI     */
                                 {2, 3, 1, 0}    /*  MIXED FLIP  */    };
-enum EStateTrans {
-    EZT,
-    EST,
-    EHT,
-    ETT
-};
+
 
 int remap_energy_tbl[4][4][4] = {
     /*  NO REMAP    */ {
@@ -427,7 +477,56 @@ int remap_energy_tbl[4][4][4] = {
         }
 };
 
-const double energy_val[4] = {/*ZT*/ 0, /*ST*/ 1.92, /*HT*/ 3.192, /*TT*/ 3.192+1.92};
+
+/* State transforming remaps */
+/** NO REMAP     (00)    :        L00->R00, L01->R01, L10->R10, L11->R11 **/
+/** EXCHANGE1    (01)    :        L00->R00, L01->R10, L10->R01, L11->R11 **/
+/** EXCHANGE2    (10)    :        L00->R11, L01->R01, L10->R10, L11->R00 **/
+/** EXHANGE3     (11)    :        L00->R10, L01->R01, L10->R00, L11->R11 **/
+
+enum EStateTransRemapSchemes {
+    ESTNOREMAP,
+    ESTEXCHG1,
+    ESTEXCHG2,
+    ESTEXCHG3,
+    ESTREMAPINVALID
+    };
+
+int statetrans_remaps[4][4] = { {0, 1, 2, 3},   /*  NO REMAP    */
+                                {0, 2, 1, 3},   /*  EXCHANGE1   */
+                                {3, 1, 2, 0},   /*  EXCHANGE2   */
+                                {2, 1, 0, 3}    /*  EXCHANGE3   */    };
+
+
+int st_trans_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {00, 11, 22, 33},   /*  ZT  */
+        {10, 01, 32, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE1    */ {
+        {00, 12, 21, 33},   /*  ZT  */
+        {10, 02, 31, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {22, 32, 01, 11}    /*  TT  */
+        },
+
+    /*  EXCHANGE2    */ {
+        {03, 11, 22, 30},   /*  ZT  */
+        {13, 01, 32, 20},   /*  ST  */
+        {23, 33, 00, 10},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE3    */ {
+        {02, 11, 20, 33},   /*  ZT  */
+        {12, 01, 30, 23},   /*  ST  */
+        {22, 32, 03, 13},   /*  HT  */
+        {21, 31, 00, 10}    /*  TT  */
+        },
+};
 
 /* Currently we calculate actual energy with this floating point calculation *
  * We need to modify this function for calculating cost intelligently. At the*
@@ -471,6 +570,96 @@ void update_energy_profile(ERemapSchemes aRemapScheme, std::unordered_map<int, i
     /* Now update the total count of this transition */
     bucket[4]++;
 }
+
+std::vector<int> MLC::lineCompare_2bit_enc_based_mapping(const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits, int thres){
+    int mask = 0;
+    int fs = flipSize; // the size the chunk , if flipsize iis 0 means no flip
+    if( flipSize == 0 ) fs = size+1; // no flip
+    else
+        mask = 2*(size/fs) - 2;
+    std::unordered_map<int, int> normal_cnt;
+    std::vector<int> ret(6, 512);
+    ret[4] = 0;
+    Byte from, to;
+    std::vector<int> res(6,0);// ZT, ST, HT, TT, remapping bits and encoding bits
+    int initial_enc = generate_encoding(bblock, size, encodingSize, thres);
+    int ifFlip = (flipBits >>mask) &3; // ifFlip records the flip option information, because in the block I stored the real content, we need remmaped it back to cell content.
+    int encbit = (initial_enc >> (mask/2)) & 1;
+    for(int j = 0; j < size; j++){ // for each byte
+        from = ablock[j]; // from block
+        to = bblock[j]; // to is the new block
+
+
+        for(int k = 0; k<8; k += 2)  { // for each 2-bit inside a byte
+            int label_fr = (((from >> k) & 3));
+            int label_to =  ((to >> k) & 3); // 3 for 0b11
+
+            int label = (stateful_remaps[ifFlip][label_fr])*10 + label_to; // so we use label to indicate the 2-bit old cell content and 2-bit new real content
+            normal_cnt[label] += 1;
+        }
+
+        if(fs <= size && (j+1)% fs == 0 ){ // when the byte is multiple of chunk size , need to decide if we flip this chunk
+        //Flip decision is made by the count. Rakesh you need change the decision logic here
+            double min_energy = 256*energy_val[ETT]; //Some high value to start with
+            int finalScheme = 0;
+            for(int scheme = ENOREMAP; scheme < EREMAPINVALID; scheme++) {
+                double temp = energy_cost((ERemapSchemes)scheme, normal_cnt);
+                if(temp < min_energy) {
+                    finalScheme = scheme;
+                    min_energy = temp;
+                }
+            }
+            res[4] = ((res[4] << 2) | finalScheme);
+            increment_state_transitions((ERemapSchemes)finalScheme, normal_cnt, res);
+
+            /* Get the encoding for chunk at same position of incoming and outgoing block to give a two-tuple from 0-3 */
+            int trans_idx = (curr_blk_enc_trans >> 30) & 3;
+            switch(trans_idx) {
+            case 0:
+                //DD
+                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, dd_energy_profile);
+                break;
+            case 1:
+                //DU
+                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, du_energy_profile);
+                break;
+            case 2:
+                //UD
+                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, ud_energy_profile);
+                break;
+            case 3:
+                //UU
+                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, uu_energy_profile);
+                break;
+            default:
+                assert(1);
+            }
+            curr_blk_enc_trans <<= 2;
+
+            mask = mask -2;
+            ifFlip = (flipBits >> mask) & 3; // update the ifPlip for next chunk
+            encbit = (initial_enc >> (mask/2)) & 1; //update enc for next chunk
+            normal_cnt.clear();
+        }
+    }
+    if( fs > size){// no filp at all
+        for(auto it : normal_cnt){
+            if(it.first == 0 or it.first == 33 or it.first == 22 or it.first == 11 )//zt
+                res[0] += it.second;
+            else if(it.first == 1 or it.first == 10 or it.first == 32 or it.first == 23)//st
+                res[1] += it.second;
+            else if(it.first == 3 or it.first == 13 or it.first == 20 or it.first == 30) //ht
+                res[2] += it.second;
+            else
+                res[3] += it.second;
+            }
+            res[4] = 0;
+    }
+    ret = res;
+    assert(ret[3] + ret[2] + ret[0] + ret[1] == 256);
+    return ret;
+}
+
 
 std::vector<int> MLC::lineCompare_2bit_stateful_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){
     int mask = 0;
@@ -551,6 +740,259 @@ std::vector<int> MLC::lineCompare_2bit_stateful_mapping( const Byte* ablock, con
             else
                 res[3] += it.second;
             }
+            res[4] = 0;
+    }
+    ret = res;
+    assert(ret[3] + ret[2] + ret[0] + ret[1] == 256);
+    return ret;
+}
+
+/* Block level mapping schemes */
+/* Hi-Flip - ON */
+/** FLIP ALL        (00)    :        L00->R11, L01->R10, L10->R01, L11->R00 **/
+/** FLIP HI         (01)    :        L00->R10, L01->R11, L10->R00, L11->R01 **/
+/** MIXED FLIP-3    (10)    :        L00->R10, L01->R11, L10->R01, L11->R00 **/
+/** MIXED FLIP-4    (11)    :        L00->R11, L01->R10, L10->R00, L11->R01 **/
+
+/* Hi-Flip - OFF */
+/** NO REMAP        (00)    :        L00->R00, L01->R01, L10->R10, L11->R11 **/
+/** FLIP LO         (01)    :        L00->R01, L01->R00, L10->R11, L11->R10 **/
+/** MIXED FLIP-1    (10)    :        L00->R00, L01->R01, L10->R11, L11->R10 **/
+/** MIXED FLIP-2    (11)    :        L00->R01, L01->R00, L10->R10, L11->R11 **/
+
+enum EHiFlipRemapSchemes {
+    EHIFLIPALL,
+    EHIFLIPHI,
+    EHIFLIPMIXED3,
+    EHIFLIPMIXED4,
+    EHIFLIPREMAPINVALID
+};
+
+int hiflip_stateful_remaps[8][4] = {    {3, 2, 1, 0},   /*  FLIP ALL        */
+                                        {2, 3, 0, 1},   /*  FLIP HI         */
+                                        {2, 3, 1, 0},   /*  MIXED FLIP - 3  */
+                                        {3, 2, 0, 1}    /*  MIXED FLIP - 4  */    };
+
+int hiflip_remap_energy_tbl[4][4][4] = {
+    /*  FLIP ALL        */ {
+        {03, 12, 21, 30},   /*  ZT  */
+        {13, 02, 31, 20},   /*  ST  */
+        {23, 33, 00, 10},   /*  HT  */
+        {22, 32, 01, 11}    /*  TT  */
+        },
+
+    /*  FLIP HI         */ {
+        {02, 13, 20, 31},   /*  ZT  */
+        {12, 03, 30, 21},   /*  ST  */
+        {22, 32, 01, 11},   /*  HT  */
+        {23, 33, 00, 10}    /*  TT  */
+        },
+
+    /*  FLIP MIXED-3     */ {
+        {02, 13, 21, 30},   /*  ZT  */
+        {12, 03, 31, 20},   /*  ST  */
+        {22, 32, 00, 10},   /*  HT  */
+        {23, 33, 01, 11}    /*  TT  */
+        },
+
+    /*  FLIP MIXED-4     */ {
+        {03, 12, 20, 31},   /*  ZT  */
+        {13, 02, 30, 21},   /*  ST  */
+        {23, 33, 01, 11},   /*  HT  */
+        {22, 32, 00, 10}    /*  TT  */
+        }
+};
+
+enum ELoFlipRemapSchemes {
+    ELONOREMAP,
+    ELOFLIPLO,
+    ELOFLIPMIXED1,
+    ELOFLIPMIXED2,
+    ELOFLIPREMAPINVALID
+};
+
+int loflip_stateful_remaps[4][4] = {    {0, 1, 2, 3},   /*  NO REMAP        */
+                                        {1, 0, 3, 2},   /*  FLIP LO         */
+                                        {0, 1, 3, 2},   /*  MIXED FLIP - 1  */
+                                        {1, 0, 2, 3},   /*  MIXED FLIP - 2  */  };
+
+int loflip_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP        */ {
+        {00, 11, 22, 33},   /*  ZT  */
+        {10, 01, 32, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  FLIP LO         */ {
+        {01, 10, 23, 32},   /*  ZT  */
+        {11, 00, 33, 22},   /*  ST  */
+        {21, 31, 02, 12},   /*  HT  */
+        {20, 30, 03, 13}    /*  TT  */
+        },
+
+    /*  FLIP MIXED-1     */ {
+        {00, 11, 23, 32},   /*  ZT  */
+        {10, 01, 33, 22},   /*  ST  */
+        {20, 30, 02, 12},   /*  HT  */
+        {21, 31, 03, 13}    /*  TT  */
+        },
+
+    /*  FLIP MIXED-2     */ {
+        {01, 10, 22, 33},   /*  ZT  */
+        {11, 00, 32, 23},   /*  ST  */
+        {21, 31, 03, 13},   /*  HT  */
+        {20, 30, 02, 12}    /*  TT  */
+        }
+};
+
+/* Currently we calculate actual energy with this floating point calculation *
+ * We need to modify this function for calculating cost intelligently. At the*
+ * least we can use integers in approximate ratio of energies for various   *
+ * energy transitions                                                        */
+double blk_energy_cost(bool hiflip, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap) {
+    int i=0, j=0, s=0;
+    int (*tbl_ptr)[4];
+    tbl_ptr = (hiflip == true) ? hiflip_remap_energy_tbl[aRemapScheme] : loflip_remap_energy_tbl[aRemapScheme];
+    double energy = 0;
+
+    for(i=0; i < 4; i++) {
+        s = 0;
+        for (j=0; j < 4; j++) {
+            s += aCountMap[tbl_ptr[i][j]];
+        }
+        energy += energy_val[i]*s;
+    }
+    return energy;
+}
+
+void increment_blk_state_transitions(bool hiflip, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap, std::vector<int>& res) {
+    int i=0, j=0;
+    int (*tbl_ptr)[4];
+    tbl_ptr = (hiflip == true) ? hiflip_remap_energy_tbl[aRemapScheme] : loflip_remap_energy_tbl[aRemapScheme];
+
+    for(i=0; i < 4; i++) {
+        for (j=0; j < 4; j++) {
+            res[i] += aCountMap[tbl_ptr[i][j]];
+        }
+    }
+}
+
+std::vector<int> MLC::lineCompare_blk_mapping( const Byte* ablock, const Byte* bblock, int size, int shiftSize, int flipSize, int flipBits){
+    std::unordered_map<int, int> normal_cnt;
+    std::vector<int> ret(5, 512);
+    std::vector<int> res(5,0);// ZT, ST, HT, TT & I use the the res[4] to return the new flip bits string
+    ret[4] = 0;
+    if(flipSize) {
+        double min_energy = 0;
+        uint8_t finalScheme = 0;
+        int scheme = 0;
+        int mask = (size/flipSize) - 1;
+        //Byte *hiFlipToChunks, *hiFlipFromChunks, *loFlipToChunks, *loFlipFromChunks;
+        std::vector<Byte> hiFlipToChunks, hiFlipFromChunks, loFlipToChunks, loFlipFromChunks;
+        std::vector<Byte> currToChunk(flipSize, 0), currFromChunk(flipSize, 0);
+        int loflip = flipBits & 3; //lowest 2 bits for lo-flip remapping chunks
+        flipBits >>= 2; //add args to function for blk based flip bit sizes
+        int hiflip = flipBits & 3;
+        flipBits >>= 2; //add args to function for blk based flip bit sizes
+        int ifFlip = (flipBits >> mask) &1; // ifFlip records the flip option information, because in the block I stored the real content, we need remmaped it back to cell content.
+        Byte from, to;
+        int q = 0;
+        int hicount = 0;
+
+        for(int j = 0; j < size; j++){ // for each byte
+            from = ablock[j]; // from block
+            to = bblock[j]; // to is the new block
+            currToChunk[q] = to; //blindly copy current to block data
+
+            for(int k = 0; k<8; k += 2)  { // for each 2-bit inside a byte
+                int label_fr = (((from >> k) & 3));
+                int label_to =  ((to >> k) & 3); // 3 for 0b11
+                if(ifFlip) {
+                    label_fr = hiflip_stateful_remaps[hiflip][label_fr];
+                }
+                else {
+                    label_fr = loflip_stateful_remaps[loflip][label_fr];
+                }
+                currFromChunk[q] = (currFromChunk[q] << 2) | label_fr;
+                if(((label_to ^ label_fr) & 2 ) == 0)
+                    hicount++; //record that for this 2-bit tuple both to and from have same high order bit
+            }
+            q++;
+
+            if((j+1)% flipSize == 0 ){
+                if(hicount < 2*flipSize) {
+                    /* Set flip bit for this chunk */
+                    for (uint8_t m = 0; m < flipSize; m++) {
+                        hiFlipFromChunks.push_back(currFromChunk[m]);
+                        hiFlipToChunks.push_back(currToChunk[m]);
+                    }
+                    res[4] = (res[4] << 1 | 1);
+                }
+                else {
+                    /* No flip bit for this chunk */
+                    for (uint8_t m = 0; m < flipSize; m++) {
+                        loFlipFromChunks.push_back(currFromChunk[m]);
+                        loFlipToChunks.push_back(currToChunk[m]);
+                    }
+                    res[4] = (res[4] << 1);
+                }
+                currToChunk.clear();
+                currFromChunk.clear();
+                q = 0;
+                hicount = 0;
+                mask = mask -1;
+                ifFlip = (flipBits >> mask) & 1; // update the ifPlip for next chunk
+            }
+        }
+        for (uint8_t m = 0; m < hiFlipFromChunks.size(); m++) {
+            for(int u = 0; u<8; u += 2)  { // for each 2-bit inside a byte
+                int label = (((hiFlipFromChunks[m] >> u) & 3)*10) + ((hiFlipToChunks[m] >> u) & 3);
+                normal_cnt[label] += 1;
+            }
+        }
+
+        min_energy = 256*energy_val[ETT]; //Some high value to start with
+        finalScheme = 0;
+        for(scheme = EHIFLIPALL; scheme < EHIFLIPREMAPINVALID; scheme++) {
+            double temp = blk_energy_cost(true, scheme, normal_cnt);
+            if(temp < min_energy) {
+                finalScheme = scheme;
+                min_energy = temp;
+            }
+        }
+        res[4] = ((res[4] << 2) | finalScheme);
+        increment_blk_state_transitions(true, finalScheme, normal_cnt, res);
+
+        normal_cnt.clear();
+        for (uint8_t m = 0; m < loFlipFromChunks.size(); m++) {
+            for(int u = 0; u<8; u += 2)  { // for each 2-bit inside a byte
+                int label = (((loFlipFromChunks[m] >> u) & 3)*10) + ((loFlipToChunks[m] >> u) & 3);
+                normal_cnt[label] += 1;
+            }
+        }
+
+        min_energy = 256*energy_val[ETT]; //Some high value to start with
+        finalScheme = 0;
+        for(scheme = ELONOREMAP; scheme < ELOFLIPREMAPINVALID; scheme++) {
+            double temp = blk_energy_cost(false, scheme, normal_cnt);
+            if(temp < min_energy) {
+                finalScheme = scheme;
+                min_energy = temp;
+            }
+        }
+        res[4] = ((res[4] << 2) | finalScheme);
+        increment_blk_state_transitions(false, finalScheme, normal_cnt, res);
+    }
+    else {// no filp at all
+            normal_cnt.clear();
+            for (uint8_t m = 0; m < size; m++) {
+                for(int u = 0; u<8; u += 2)  { // for each 2-bit inside a byte
+                    int label = (((ablock[m] >> u) & 3)*10) + ((bblock[m] >> u) & 3);
+                    normal_cnt[label] += 1;
+                }
+            }
+            increment_blk_state_transitions(false, ELONOREMAP, normal_cnt, res); //force no remap option
             res[4] = 0;
     }
     ret = res;
@@ -1139,7 +1581,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 								curfb = lineCompare(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 							else if(loc_weight >= 512 ) // 2bit remmaping
 								//curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
-								curfb = lineCompare_2bit_stateful_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+								curfb = lineCompare_blk_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 							else // flip MSB 1 bit
 								curfb = lineCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 								//pq.push(1.084*fb[1]+ 1.084*fb[3] + 2.653*fb[2] + 2.653*fb[3]);
@@ -1194,7 +1636,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 								curfb = lineCompare(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 							else if(loc_weight >= 512 ) // 2bit remmaping
 								//curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
-								curfb = lineCompare_2bit_stateful_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+								curfb = lineCompare_blk_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 							else // flip MSB 1 bit
 								curfb = lineCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 								//pq.push(1.084*fb[1]+ 1.084*fb[3] + 2.653*fb[2] + 2.653*fb[3]);
@@ -1237,24 +1679,32 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 
 
 			}
-			else if(options == 0 or options == 1 ){ // options 1 for rank options 0 for normal
+			else if(options == 0 or options == 1 or options == 5 or options == 6 or options == 7 or options == 8){ // options 1 for rank options 0 for normal
+                int lru_index = -1;
 				for(UInt32 i = 0 ; i < assoc; i++)
 				{
 					int recency = locVal[i];
 					if(recency != 0 ){
+					    if(recency == 1)
+                            lru_index = i;
 						//if( range == 0 && recency == 1) recency = 0;
 						//set->read_line(i, 0, read_buff, 64, false);
 						//std::memcpy(blk->data, pkt->getConstPtr<uint8_t>(), blkSize);
 						enc_d = encodingCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, thres, encodingSize);
 
-						if(options == 1 ){ // curfb counts the tt zt and ht
-							if(loc_weight >= 1024 )
+						if(options == 1 or options == 7 or options == 8){ // curfb counts the tt zt and ht
+							/*if(loc_weight >= 1024 )
 								curfb = lineCompare(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
-							else if(loc_weight >= 512 ) // 2bit
+							else if(loc_weight >= 512 ) // 2bit*/
 								//curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+							if (options == 1)
+								curfb = lineCompare_2bit_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+							else if (options == 7)
 								curfb = lineCompare_2bit_stateful_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
-							else // flip MSB 1 bit
-								curfb = lineCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+							else
+								curfb = lineCompare_blk_mapping(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+							/*else // flip MSB 1 bit
+								curfb = lineCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);*/
 							pq.push(1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3]);
 						}
 						double cur = 10*(enc_d/numSeg) + diverse_weight*(enc_d%numSeg) + recency * (loc_weight % 512);
@@ -1275,13 +1725,21 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 					}
 				}
 				int rank = 1;
-				if( options == 1 )
+				if( options == 1 or options == 7 or options == 8 )
 					while( !pq.empty() && (1.92*fb[1]+ 1.92*fb[3] + 3.192*fb[2] + 3.192*fb[3]) > pq.top()){
 						pq.pop();
 						rank++;
 					}
 				totalRanks[rank] += 1;
-				idx = min_index;
+				if(diverse_weight == 10.0) {
+                    int numUU = numSeg - ((cur_hd/numSeg) + (cur_hd%numSeg) + 1);
+                    if(numUU > UUthres)
+                        idx = min_index;
+                    else
+                        idx = lru_index;
+				}
+				else
+                    idx = min_index;
 				blk = sets[set].blks[idx];
 
 				while (blk->way >= allocAssoc) {
@@ -1294,14 +1752,19 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 				assert(blk->way < allocAssoc);
 
 		//assert(!blk || blk->way < allocAssoc);
-				if(options == 0) {
-					if(loc_weight >= 1024 )
+				if(options == 0 or options == 5 or options == 6) {
+					/*if(loc_weight >= 1024 )
 						fb = lineCompare(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
-					else if(loc_weight >= 512 ) // 2bit
+					else if(loc_weight >= 512 ) // 2bit*/
 						//fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+					if(options == 0)
+						fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+					if(options == 5)
 						fb = lineCompare_2bit_stateful_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
-					else // flip MSB 1 bit
-						fb = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+					if(options == 6)
+						fb = lineCompare_blk_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+					/*else // flip MSB 1 bit
+						fb = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);*/
 				}
 			//std::cout<<cur_hd<<std::endl;
 		//totalFlipbits[cur_hd] += fb;
@@ -1334,7 +1797,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 					fb = lineCompare(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 				else if(loc_weight >= 512 ) // 2bit
 					//fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
-					fb = lineCompare_2bit_stateful_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+					fb = lineCompare_blk_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 				else // flip MSB 1 bit
 					fb = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 
