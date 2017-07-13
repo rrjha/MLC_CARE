@@ -86,9 +86,12 @@ class MLC(BaseSetAssoc):
     encodingSize = Param.Int(4, "encoding size in bytes")
     loc_weight = Param.Int(0, "location weight")
     diverse_weight = Param.Float(5.8, "diverse weight")
+    tie_weight = Param.Float(0, "Tie-breaker D-weight")
     thres = Param.Int(12, "encoding threshold out of 64 ")
     options = Param.Int(0, "replace scheme")
     UUthres = Param.Int(0, "UU threshold for LRU fallback")
+    enc_correction = Param.Bool(False, "Is Encoding correction enabled?")
+    enc_remap_op = Param.Int(0, "replace scheme")
 
 class RandomRepl(BaseSetAssoc):
     type = 'RandomRepl'

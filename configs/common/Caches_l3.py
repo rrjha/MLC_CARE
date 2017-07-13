@@ -64,20 +64,20 @@ class L1_DCache(L1Cache):
 class L2Cache(Cache):    
     tags = eval('LRU()')
     assoc = 8
-    hit_latency = 20
-    write_latency = 20
-    response_latency = 20
+    hit_latency = 12
+    write_latency = 12
+    response_latency = 12
     mshrs = 20
     tgts_per_mshr = 12
     write_buffers = 8
 
-class L3Cache(Cache):   
+class L3Cache(Cache):   #for CARE L3 19 - 19 - 60
     
     #tags = eval('CAR()')
     assoc = 32
-    hit_latency = 20
-    write_latency = 50
-    response_latency = 20
+    hit_latency = 19
+    write_latency = 60
+    response_latency = 19
 #    sector_size = 4
 #    entry_size = 4
     mshrs = 512

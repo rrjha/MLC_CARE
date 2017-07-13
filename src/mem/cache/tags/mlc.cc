@@ -62,12 +62,15 @@ MLC::MLC(const Params *p)
 	shiftSize = 64;
 	options = p->options;
 	UUthres = p->UUthres;
+	enc_correction = p->enc_correction;
+	tie_weight = p->tie_weight;
+	enc_remap_op = p->enc_remap_op;
 	/*encodingSize = 8;
 	shiftSize = 64;
 	flipSize = 8;
 	thres = 47;
 	loc_weight = 8;*/
-	std::cout<<"MLC "<< diverse_weight<<" "<<loc_weight<<" thres"<< thres<<" "<< encodingSize <<" " <<flipSize <<" options = " <<options << "UU threshold = " << UUthres <<std::endl;
+	std::cout<<"MLC "<< "enc_remap_op "<< enc_remap_op << " " <<"Tie-breaker weight: "<< tie_weight<<" "<< diverse_weight<<" "<<loc_weight<<" thres"<< thres<<" "<< encodingSize <<" " <<flipSize <<" options = " <<options << "UU threshold = " << UUthres << "enc_correction " << enc_correction <<std::endl;
 	//std::cout<<"sec "<< diverse_weight<<" "<<loc_weight<<" thres"<< thres<<" "<< encodingSize <<" " <<flipSize <<" options " <<options <<std::endl;
 	//std::cout<<"sector "<< secSize <<" entry_size"<<entrySize<<"shift " <<secShift<<std::endl;
 }
@@ -212,6 +215,15 @@ int MLC::generate_encoding(const Byte* blk_data, int blk_size, const int encodin
     return encoding;
 }
 
+int MLC::getNumD(const Byte* blk_data, int blk_size, const int encodingSize, int thres) {
+    int victim_encoding = generate_encoding(blk_data, blk_size, encodingSize, thres);
+    int numU = 0;
+	for(int v = victim_encoding; v > 0; v &= (v-1))
+		numU++;
+    return ((blk_size/encodingSize) - numU);
+}
+
+
 int MLC::encodingCompare_exact(const Byte* ablock, const Byte* bblock, int size, int victim_flipbits, const int encodingSize, int thres) {
 	double total_diff = 0;
 	int minimal_diff = 2000000; // Not sure if we need minimal diff but retaining for compatibility, if any
@@ -220,15 +232,20 @@ int MLC::encodingCompare_exact(const Byte* ablock, const Byte* bblock, int size,
         int victim_encoding = generate_encoding(ablock, size, encodingSize, thres);
         int encoding = generate_encoding(bblock, size, encodingSize, thres);
         int vreal_enc = 0;
-        /* Traverse flipbits and victim encoding at the same time and apply correction */
-        for(int i = (numSeg-2); i >= 0; i--) {
-            if((((victim_encoding >> i) & 1) == 0) &&
-               (((victim_flipbits >> 2*i) & 3) != 0))
-                /* Got a "Diverse" that is actually "U" after remap */
-                vreal_enc = (vreal_enc << 1) | 1;
-            else
-                vreal_enc = (vreal_enc << 1) | ((victim_encoding >> i) & 1);
+        if(enc_correction) {
+            /* Traverse flipbits and victim encoding at the same time and apply correction */
+            for(int i = (numSeg-2); i >= 0; i--) {
+                if((((victim_encoding >> i) & 1) == 0) &&
+                   (((victim_flipbits >> 2*i) & 3) != 0))
+                    /* Got a "Diverse" that is actually "U" after remap */
+                    vreal_enc = (vreal_enc << 1) | 1;
+                else
+                    vreal_enc = (vreal_enc << 1) | ((victim_encoding >> i) & 1);
+            }
         }
+        else
+            vreal_enc = victim_encoding; //don't apply any correction this may have selection inefficiency but can give energy gains
+
 	    /* Compare each bit of encoding generated for to block and corrected encoding for victim block */
 	    for(int i = (numSeg-2); i >= 0; i--) { //decrement start by 2 as we already incremented numSeg by 1
             if(((encoding >> i)&1) != ((vreal_enc >> i)&1))
@@ -494,6 +511,339 @@ enum EStateTransRemapSchemes {
     ESTREMAPINVALID
     };
 
+#define MAX_ENC_REMAP_COMBOS 9
+int statetrans_remaps[MAX_ENC_REMAP_COMBOS][4][4] = {
+    {
+        {0, 1, 2, 3},   /*  NO REMAP    */
+        {0, 2, 1, 3},   /*  EXCHANGE1   */
+        {3, 1, 2, 0},   /*  EXCHANGE2   */
+        {2, 1, 0, 3}    /*  EXCHANGE3   */
+    },
+    {
+        {0, 1, 2, 3},   /*  NO REMAP    */
+        {0, 3, 2, 1},   /*  EXCHANGE1   */
+        {3, 1, 2, 0},   /*  EXCHANGE2   */
+        {2, 1, 0, 3}    /*  EXCHANGE3   */
+    },
+    {
+        {0, 1, 2, 3},   /*  NO REMAP    */
+        {0, 2, 1, 3},   /*  EXCHANGE1   */
+        {0, 3, 2, 1},   /*  EXCHANGE2   */
+        {2, 1, 0, 3}    /*  EXCHANGE3   */
+    },
+    {
+        {0, 1, 2, 3},   /*  NO REMAP    */
+        {0, 2, 1, 3},   /*  EXCHANGE1   */
+        {3, 1, 2, 0},   /*  EXCHANGE2   */
+        {0, 3, 2, 1}    /*  EXCHANGE3   */
+    },
+    {
+        {0, 3, 2, 1},   /*  NO REMAP    */
+        {0, 2, 1, 3},   /*  EXCHANGE1   */
+        {3, 1, 2, 0},   /*  EXCHANGE2   */
+        {2, 1, 0, 3}    /*  EXCHANGE3   */
+    },
+    {
+        {0, 1, 2, 3},   /*  NO REMAP    */
+        {3, 2, 1, 0},   /*  FLIP ALL    */
+        {2, 3, 0, 1},   /*  FLIP HI     */
+        {2, 3, 1, 0}    /*  MIXED FLIP  */
+    },
+    {
+        {0, 1, 2, 3},   /*  NO REMAP    */
+        {0, 2, 1, 3},   /*  EXCHANGE1   */
+        {3, 1, 2, 0},   /*  EXCHANGE2   */
+        {2, 3, 0, 1}    /*  EXCHANGE3   */
+    },
+    {
+        {0, 1, 2, 3},   /*  NO REMAP    */
+        {0, 2, 1, 3},   /*  EXCHANGE1   */
+        {3, 1, 2, 0},   /*  EXCHANGE2   */
+        {3, 2, 1, 0}    /*  EXCHANGE3   */
+    },
+    {
+        {3, 2, 1, 0},   /*  NO REMAP    */
+        {0, 2, 1, 3},   /*  EXCHANGE1   */
+        {2, 1, 0, 3},   /*  EXCHANGE2   */
+        {2, 3, 0, 1}    /*  EXCHANGE3   */
+    }
+
+};
+int st_trans_remap_energy_tbl[MAX_ENC_REMAP_COMBOS][4][4][4] = {
+    /* Combo-1 */
+    {
+        /*  NO REMAP    */ {
+            {00, 11, 22, 33},   /*  ZT  */
+            {10, 01, 32, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE1    */ {
+            {00, 12, 21, 33},   /*  ZT  */
+            {10, 02, 31, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {22, 32, 01, 11}    /*  TT  */
+            },
+
+        /*  EXCHANGE2    */ {
+            {03, 11, 22, 30},   /*  ZT  */
+            {13, 01, 32, 20},   /*  ST  */
+            {23, 33, 00, 10},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE3    */ {
+            {02, 11, 20, 33},   /*  ZT  */
+            {12, 01, 30, 23},   /*  ST  */
+            {22, 32, 03, 13},   /*  HT  */
+            {21, 31, 00, 10}    /*  TT  */
+            }
+    },
+    /* Combo-2 */
+    {
+        /*  NO REMAP    */ {
+            {00, 11, 22, 33},   /*  ZT  */
+            {10, 01, 32, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE1    */ {
+            {00, 13, 22, 31},   /*  ZT  */
+            {10, 03, 32, 21},   /*  ST  */
+            {20, 30, 01, 11},   /*  HT  */
+            {23, 33, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE2    */ {
+            {03, 11, 22, 30},   /*  ZT  */
+            {13, 01, 32, 20},   /*  ST  */
+            {23, 33, 00, 10},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE3    */ {
+            {02, 11, 20, 33},   /*  ZT  */
+            {12, 01, 30, 23},   /*  ST  */
+            {22, 32, 03, 13},   /*  HT  */
+            {21, 31, 00, 10}    /*  TT  */
+            }
+    },
+    /* Combo-3 */
+    {
+        /*  NO REMAP    */ {
+            {00, 11, 22, 33},   /*  ZT  */
+            {10, 01, 32, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE1    */ {
+            {00, 12, 21, 33},   /*  ZT  */
+            {10, 02, 31, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {22, 32, 01, 11}    /*  TT  */
+            },
+
+        /*  EXCHANGE2    */ {
+            {00, 13, 22, 31},   /*  ZT  */
+            {10, 03, 32, 21},   /*  ST  */
+            {20, 30, 01, 11},   /*  HT  */
+            {23, 33, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE3    */ {
+            {02, 11, 20, 33},   /*  ZT  */
+            {12, 01, 30, 23},   /*  ST  */
+            {22, 32, 03, 13},   /*  HT  */
+            {21, 31, 00, 10}    /*  TT  */
+            },
+    },
+    /* Combo-4 */
+    {
+        /*  NO REMAP    */ {
+            {00, 11, 22, 33},   /*  ZT  */
+            {10, 01, 32, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE1    */ {
+            {00, 12, 21, 33},   /*  ZT  */
+            {10, 02, 31, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {22, 32, 01, 11}    /*  TT  */
+            },
+
+        /*  EXCHANGE2    */ {
+            {03, 11, 22, 30},   /*  ZT  */
+            {13, 01, 32, 20},   /*  ST  */
+            {23, 33, 00, 10},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE3    */ {
+            {00, 13, 22, 31},   /*  ZT  */
+            {10, 03, 32, 21},   /*  ST  */
+            {20, 30, 01, 11},   /*  HT  */
+            {23, 33, 02, 12}    /*  TT  */
+            }
+    },
+    /* Combo-5 */
+    {
+        /*  NO REMAP    */ {
+            {00, 13, 22, 31},   /*  ZT  */
+            {10, 03, 32, 21},   /*  ST  */
+            {20, 30, 01, 11},   /*  HT  */
+            {23, 33, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE1    */ {
+            {00, 12, 21, 33},   /*  ZT  */
+            {10, 02, 31, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {22, 32, 01, 11}    /*  TT  */
+            },
+
+        /*  EXCHANGE2    */ {
+            {03, 11, 22, 30},   /*  ZT  */
+            {13, 01, 32, 20},   /*  ST  */
+            {23, 33, 00, 10},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE3    */ {
+            {02, 11, 20, 33},   /*  ZT  */
+            {12, 01, 30, 23},   /*  ST  */
+            {22, 32, 03, 13},   /*  HT  */
+            {21, 31, 00, 10}    /*  TT  */
+            }
+    },
+    /* Combo-6 */
+    {
+        /*  NO REMAP    */ {
+            {00, 11, 22, 33},   /*  ZT  */
+            {10, 01, 32, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  FLIP ALL    */ {
+            {03, 12, 21, 30},   /*  ZT  */
+            {13, 02, 31, 20},   /*  ST  */
+            {00, 10, 23, 33},   /*  HT  */
+            {01, 11, 22, 32}    /*  TT  */
+            },
+
+        /*  FLIP HI     */ {
+            {02, 13, 20, 31},   /*  ZT  */
+            {12, 03, 30, 21},   /*  ST  */
+            {22, 32, 01, 11},   /*  HT  */
+            {23, 33, 00, 10}    /*  TT  */
+            },
+
+        /*  MIXED FLIP  */ {
+            {20, 31, 12, 03},   /*  ZT  */
+            {30, 21, 13, 02},   /*  ST  */
+            {01, 11, 23, 33},   /*  HT  */
+            {00, 10, 22, 32}    /*  TT  */
+            }
+    },
+    /* Combo-7 */
+    {
+        /*  NO REMAP    */ {
+            {00, 11, 22, 33},   /*  ZT  */
+            {10, 01, 32, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE1    */ {
+            {00, 12, 21, 33},   /*  ZT  */
+            {10, 02, 31, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {22, 32, 01, 11}    /*  TT  */
+            },
+
+        /*  EXCHANGE2    */ {
+            {03, 11, 22, 30},   /*  ZT  */
+            {13, 01, 32, 20},   /*  ST  */
+            {23, 33, 00, 10},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE3    */ {
+            {02, 13, 20, 31},   /*  ZT  */
+            {12, 03, 30, 21},   /*  ST  */
+            {22, 32, 01, 11},   /*  HT  */
+            {23, 33, 00, 10}    /*  TT  */
+            }
+    },
+    /* Combo-8 */
+    {
+        /*  NO REMAP    */ {
+            {00, 11, 22, 33},   /*  ZT  */
+            {10, 01, 32, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE1    */ {
+            {00, 12, 21, 33},   /*  ZT  */
+            {10, 02, 31, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {22, 32, 01, 11}    /*  TT  */
+            },
+
+        /*  EXCHANGE2    */ {
+            {03, 11, 22, 30},   /*  ZT  */
+            {13, 01, 32, 20},   /*  ST  */
+            {23, 33, 00, 10},   /*  HT  */
+            {21, 31, 02, 12}    /*  TT  */
+            },
+
+        /*  EXCHANGE3    */ {
+            {03, 12, 21, 30},   /*  ZT  */
+            {13, 02, 31, 20},   /*  ST  */
+            {00, 10, 23, 33},   /*  HT  */
+            {01, 11, 22, 32}    /*  TT  */
+            }
+    },
+    /* Combo-9 */
+    {
+        /*  NO REMAP    */ {
+            {03, 12, 21, 30},   /*  ZT  */
+            {13, 02, 31, 20},   /*  ST  */
+            {00, 10, 23, 33},   /*  HT  */
+            {01, 11, 22, 32}    /*  TT  */
+            },
+
+        /*  EXCHANGE1    */ {
+            {00, 12, 21, 33},   /*  ZT  */
+            {10, 02, 31, 23},   /*  ST  */
+            {20, 30, 03, 13},   /*  HT  */
+            {22, 32, 01, 11}    /*  TT  */
+            },
+
+        /*  EXCHANGE2    */ {
+            {02, 11, 20, 33},   /*  ZT  */
+            {12, 01, 30, 23},   /*  ST  */
+            {22, 32, 03, 13},   /*  HT  */
+            {21, 31, 00, 10}    /*  TT  */
+            },
+
+        /*  EXCHANGE3    */ {
+            {02, 13, 20, 31},   /*  ZT  */
+            {12, 03, 30, 21},   /*  ST  */
+            {22, 32, 01, 11},   /*  HT  */
+            {23, 33, 00, 10}    /*  TT  */
+            }
+    }
+};
+
+#if 0
+#if REMAP_COMBO == 1
 int statetrans_remaps[4][4] = { {0, 1, 2, 3},   /*  NO REMAP    */
                                 {0, 2, 1, 3},   /*  EXCHANGE1   */
                                 {3, 1, 2, 0},   /*  EXCHANGE2   */
@@ -527,18 +877,307 @@ int st_trans_remap_energy_tbl[4][4][4] = {
         {12, 01, 30, 23},   /*  ST  */
         {22, 32, 03, 13},   /*  HT  */
         {21, 31, 00, 10}    /*  TT  */
+        }
+};
+#elif REMAP_COMBO == 2
+int statetrans_remaps[4][4] = { {0, 1, 2, 3},   /*  NO REMAP    */
+                                {0, 3, 2, 1},   /*  EXCHANGE1   */
+                                {3, 1, 2, 0},   /*  EXCHANGE2   */
+                                {2, 1, 0, 3}    /*  EXCHANGE3   */    };
+
+
+int st_trans_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {00, 11, 22, 33},   /*  ZT  */
+        {10, 01, 32, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE1    */ {
+        {00, 13, 22, 31},   /*  ZT  */
+        {10, 03, 32, 21},   /*  ST  */
+        {20, 30, 01, 11},   /*  HT  */
+        {23, 33, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE2    */ {
+        {03, 11, 22, 30},   /*  ZT  */
+        {13, 01, 32, 20},   /*  ST  */
+        {23, 33, 00, 10},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE3    */ {
+        {02, 11, 20, 33},   /*  ZT  */
+        {12, 01, 30, 23},   /*  ST  */
+        {22, 32, 03, 13},   /*  HT  */
+        {21, 31, 00, 10}    /*  TT  */
+        }
+};
+#elif REMAP_COMBO == 3
+int statetrans_remaps[4][4] = { {0, 1, 2, 3},   /*  NO REMAP    */
+                                {0, 2, 1, 3},   /*  EXCHANGE1   */
+                                {0, 3, 2, 1},   /*  EXCHANGE2   */
+                                {2, 1, 0, 3}    /*  EXCHANGE3   */    };
+
+
+int st_trans_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {00, 11, 22, 33},   /*  ZT  */
+        {10, 01, 32, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE1    */ {
+        {00, 12, 21, 33},   /*  ZT  */
+        {10, 02, 31, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {22, 32, 01, 11}    /*  TT  */
+        },
+
+    /*  EXCHANGE2    */ {
+        {00, 13, 22, 31},   /*  ZT  */
+        {10, 03, 32, 21},   /*  ST  */
+        {20, 30, 01, 11},   /*  HT  */
+        {23, 33, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE3    */ {
+        {02, 11, 20, 33},   /*  ZT  */
+        {12, 01, 30, 23},   /*  ST  */
+        {22, 32, 03, 13},   /*  HT  */
+        {21, 31, 00, 10}    /*  TT  */
         },
 };
+#elif REMAP_COMBO == 4
+int statetrans_remaps[4][4] = { {0, 1, 2, 3},   /*  NO REMAP    */
+                                {0, 2, 1, 3},   /*  EXCHANGE1   */
+                                {3, 1, 2, 0},   /*  EXCHANGE2   */
+                                {0, 3, 2, 1}    /*  EXCHANGE3   */    };
 
+
+int st_trans_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {00, 11, 22, 33},   /*  ZT  */
+        {10, 01, 32, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE1    */ {
+        {00, 12, 21, 33},   /*  ZT  */
+        {10, 02, 31, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {22, 32, 01, 11}    /*  TT  */
+        },
+
+    /*  EXCHANGE2    */ {
+        {03, 11, 22, 30},   /*  ZT  */
+        {13, 01, 32, 20},   /*  ST  */
+        {23, 33, 00, 10},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE3    */ {
+        {00, 13, 22, 31},   /*  ZT  */
+        {10, 03, 32, 21},   /*  ST  */
+        {20, 30, 01, 11},   /*  HT  */
+        {23, 33, 02, 12}    /*  TT  */
+        }
+};
+#elif REMAP_COMBO == 5 //No NOREMAP - State Transforming all
+int statetrans_remaps[4][4] = { {0, 3, 2, 1},   /*  NO REMAP    */
+                                {0, 2, 1, 3},   /*  EXCHANGE1   */
+                                {3, 1, 2, 0},   /*  EXCHANGE2   */
+                                {2, 1, 0, 3}    /*  EXCHANGE3   */    };
+
+
+int st_trans_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {00, 13, 22, 31},   /*  ZT  */
+        {10, 03, 32, 21},   /*  ST  */
+        {20, 30, 01, 11},   /*  HT  */
+        {23, 33, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE1    */ {
+        {00, 12, 21, 33},   /*  ZT  */
+        {10, 02, 31, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {22, 32, 01, 11}    /*  TT  */
+        },
+
+    /*  EXCHANGE2    */ {
+        {03, 11, 22, 30},   /*  ZT  */
+        {13, 01, 32, 20},   /*  ST  */
+        {23, 33, 00, 10},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE3    */ {
+        {02, 11, 20, 33},   /*  ZT  */
+        {12, 01, 30, 23},   /*  ST  */
+        {22, 32, 03, 13},   /*  HT  */
+        {21, 31, 00, 10}    /*  TT  */
+        }
+};
+#elif REMAP_COMBO == 6 //same as state-preserving
+int statetrans_remaps[4][4] = { {0, 1, 2, 3},   /*  NO REMAP    */
+                                {3, 2, 1, 0},   /*  FLIP ALL    */
+                                {2, 3, 0, 1},   /*  FLIP HI     */
+                                {2, 3, 1, 0}    /*  MIXED FLIP  */    };
+
+
+int st_trans_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {00, 11, 22, 33},   /*  ZT  */
+        {10, 01, 32, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  FLIP ALL    */ {
+        {03, 12, 21, 30},   /*  ZT  */
+        {13, 02, 31, 20},   /*  ST  */
+        {00, 10, 23, 33},   /*  HT  */
+        {01, 11, 22, 32}    /*  TT  */
+        },
+
+    /*  FLIP HI     */ {
+        {02, 13, 20, 31},   /*  ZT  */
+        {12, 03, 30, 21},   /*  ST  */
+        {22, 32, 01, 11},   /*  HT  */
+        {23, 33, 00, 10}    /*  TT  */
+        },
+
+    /*  MIXED FLIP  */ {
+        {20, 31, 12, 03},   /*  ZT  */
+        {30, 21, 13, 02},   /*  ST  */
+        {01, 11, 23, 33},   /*  HT  */
+        {00, 10, 22, 32}    /*  TT  */
+        }
+};
+#elif REMAP_COMBO == 7                          //remove {0, 3, 2, 1} and {2, 1, 0, 3} to add FLIP-HI
+int statetrans_remaps[4][4] = { {0, 1, 2, 3},   /*  NO REMAP    */
+                                {0, 2, 1, 3},   /*  EXCHANGE1   */
+                                {3, 1, 2, 0},   /*  EXCHANGE2   */
+                                {2, 3, 0, 1}    /*  EXCHANGE3   */    };
+
+
+int st_trans_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {00, 11, 22, 33},   /*  ZT  */
+        {10, 01, 32, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE1    */ {
+        {00, 12, 21, 33},   /*  ZT  */
+        {10, 02, 31, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {22, 32, 01, 11}    /*  TT  */
+        },
+
+    /*  EXCHANGE2    */ {
+        {03, 11, 22, 30},   /*  ZT  */
+        {13, 01, 32, 20},   /*  ST  */
+        {23, 33, 00, 10},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE3    */ {
+        {02, 13, 20, 31},   /*  ZT  */
+        {12, 03, 30, 21},   /*  ST  */
+        {22, 32, 01, 11},   /*  HT  */
+        {23, 33, 00, 10}    /*  TT  */
+        }
+};
+#elif REMAP_COMBO == 8                          //remove {0, 3, 2, 1} and {2, 1, 0, 3} to add FLIP-HI
+int statetrans_remaps[4][4] = { {0, 1, 2, 3},   /*  NO REMAP    */
+                                {0, 2, 1, 3},   /*  EXCHANGE1   */
+                                {3, 1, 2, 0},   /*  EXCHANGE2   */
+                                {3, 2, 1, 0}    /*  EXCHANGE3   */    };
+
+
+int st_trans_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {00, 11, 22, 33},   /*  ZT  */
+        {10, 01, 32, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE1    */ {
+        {00, 12, 21, 33},   /*  ZT  */
+        {10, 02, 31, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {22, 32, 01, 11}    /*  TT  */
+        },
+
+    /*  EXCHANGE2    */ {
+        {03, 11, 22, 30},   /*  ZT  */
+        {13, 01, 32, 20},   /*  ST  */
+        {23, 33, 00, 10},   /*  HT  */
+        {21, 31, 02, 12}    /*  TT  */
+        },
+
+    /*  EXCHANGE3    */ {
+        {03, 12, 21, 30},   /*  ZT  */
+        {13, 02, 31, 20},   /*  ST  */
+        {00, 10, 23, 33},   /*  HT  */
+        {01, 11, 22, 32}    /*  TT  */
+        }
+};
+#else                                           // No no-remap, 2 state preserving and FLIP-HI and Flip - All
+int statetrans_remaps[4][4] = { {3, 2, 1, 0},   /*  NO REMAP    */
+                                {0, 2, 1, 3},   /*  EXCHANGE1   */
+                                {2, 1, 0, 3},   /*  EXCHANGE2   */
+                                {2, 3, 0, 1}    /*  EXCHANGE3   */    };
+
+
+int st_trans_remap_energy_tbl[4][4][4] = {
+    /*  NO REMAP    */ {
+        {03, 12, 21, 30},   /*  ZT  */
+        {13, 02, 31, 20},   /*  ST  */
+        {00, 10, 23, 33},   /*  HT  */
+        {01, 11, 22, 32}    /*  TT  */
+        },
+
+    /*  EXCHANGE1    */ {
+        {00, 12, 21, 33},   /*  ZT  */
+        {10, 02, 31, 23},   /*  ST  */
+        {20, 30, 03, 13},   /*  HT  */
+        {22, 32, 01, 11}    /*  TT  */
+        },
+
+    /*  EXCHANGE2    */ {
+        {02, 11, 20, 33},   /*  ZT  */
+        {12, 01, 30, 23},   /*  ST  */
+        {22, 32, 03, 13},   /*  HT  */
+        {21, 31, 00, 10}    /*  TT  */
+        },
+
+    /*  EXCHANGE3    */ {
+        {02, 13, 20, 31},   /*  ZT  */
+        {12, 03, 30, 21},   /*  ST  */
+        {22, 32, 01, 11},   /*  HT  */
+        {23, 33, 00, 10}    /*  TT  */
+        }
+};
+#endif // REMAP_COMBO
+#endif // 0
 /* Currently we calculate actual energy with this floating point calculation *
  * We need to modify this function for calculating cost intelligently. At the*
  * least we can use integers in approximate ratio of energies for various   *
  * energy transitions                                                        */
-double energy_cost(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap) {
+double MLC::energy_cost(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap) {
     int i=0, j=0, s=0;
     double energy = 0;
     int (*tbl_ptr)[4];
-    tbl_ptr = (statepreserving == true) ? remap_energy_tbl[aRemapScheme] : st_trans_remap_energy_tbl[aRemapScheme];
+    tbl_ptr = (statepreserving == true) ? remap_energy_tbl[aRemapScheme] : st_trans_remap_energy_tbl[enc_remap_op][aRemapScheme];
 
     for(i=0; i < 4; i++) {
         s = 0;
@@ -550,10 +1189,10 @@ double energy_cost(bool statepreserving, uint8_t aRemapScheme, std::unordered_ma
     return energy;
 }
 
-void increment_state_transitions(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap, std::vector<int>& res) {
+void MLC::increment_state_transitions(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap, std::vector<int>& res) {
     int i=0, j=0;
     int (*tbl_ptr)[4];
-    tbl_ptr = (statepreserving == true) ? remap_energy_tbl[aRemapScheme] : st_trans_remap_energy_tbl[aRemapScheme];
+    tbl_ptr = (statepreserving == true) ? remap_energy_tbl[aRemapScheme] : st_trans_remap_energy_tbl[enc_remap_op][aRemapScheme];
 
     for(i=0; i < 4; i++) {
         for (j=0; j < 4; j++) {
@@ -562,7 +1201,7 @@ void increment_state_transitions(bool statepreserving, uint8_t aRemapScheme, std
     }
 }
 
-void update_energy_profile(ERemapSchemes aRemapScheme, std::unordered_map<int, int>& aCountMap, Stats::Vector& bucket) {
+void MLC::update_energy_profile(uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap, Stats::Vector& bucket) {
     int i=0, j=0;
     int (*tbl_ptr)[4] = remap_energy_tbl[aRemapScheme];
 
@@ -580,7 +1219,7 @@ bool MLC::isencodingU(const Byte* chunk, int chunkSize, uint8_t remapScheme, int
     for(int i=0; i < chunkSize; i++) {
         for(int j=0; j < 8; j+=2) {
             int before = (chunk[i] >> j) & 3;
-            int after = statetrans_remaps[remapScheme][before];
+            int after = statetrans_remaps[enc_remap_op][remapScheme][before];
             hibit = hibit + ((after >> 1) & 1);
         }
     }
@@ -610,7 +1249,7 @@ std::vector<int> MLC::lineCompare_2bit_enc_based_mapping(const Byte* ablock, con
             int label_fr = (((from >> k) & 3));
             int label_to =  ((to >> k) & 3); // 3 for 0b11
 
-            int label = (encbit == 1) ? ((stateful_remaps[ifFlip][label_fr])*10 + label_to) : ((statetrans_remaps[ifFlip][label_fr])*10 + label_to); // so we use label to indicate the 2-bit old cell content and 2-bit new real content
+            int label = (encbit == 1) ? ((stateful_remaps[ifFlip][label_fr])*10 + label_to) : ((statetrans_remaps[enc_remap_op][ifFlip][label_fr])*10 + label_to); // so we use label to indicate the 2-bit old cell content and 2-bit new real content
             normal_cnt[label] += 1;
         }
 
@@ -628,7 +1267,7 @@ std::vector<int> MLC::lineCompare_2bit_enc_based_mapping(const Byte* ablock, con
                 }
             }
             /* Check if the final scheme ensures change of state to "U" for this "D" chunk */
-            if((encbit == 0) && (finalScheme != 0) &&
+            if((encbit == 0) && (finalScheme != 0) && (enc_correction == true) &&
                !(isencodingU(bblock+j+1-fs, fs, finalScheme, thres)))
                 finalScheme = 0;
 
@@ -703,19 +1342,19 @@ std::vector<int> MLC::lineCompare_2bit_stateful_mapping( const Byte* ablock, con
             switch(trans_idx) {
             case 0:
                 //DD
-                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, dd_energy_profile);
+                update_energy_profile(finalScheme, normal_cnt, dd_energy_profile);
                 break;
             case 1:
                 //DU
-                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, du_energy_profile);
+                update_energy_profile(finalScheme, normal_cnt, du_energy_profile);
                 break;
             case 2:
                 //UD
-                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, ud_energy_profile);
+                update_energy_profile(finalScheme, normal_cnt, ud_energy_profile);
                 break;
             case 3:
                 //UU
-                update_energy_profile((ERemapSchemes)finalScheme, normal_cnt, uu_energy_profile);
+                update_energy_profile(finalScheme, normal_cnt, uu_energy_profile);
                 break;
             default:
                 assert(1);
@@ -1710,7 +2349,8 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 								curfb = lineCompare_2bit(sets[set].blks[i]->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);*/
 							pq.push(1.92*curfb[1]+ 1.92*curfb[3] + 3.192*curfb[2] + 3.192*curfb[3]);
 						}
-						double cur = 10*(enc_d/numSeg) + diverse_weight*(enc_d%numSeg) + recency * (loc_weight % 512);
+						int numD = getNumD(sets[set].blks[i]->data, 64, encodingSize, thres);
+						double cur = 10*(enc_d/numSeg) + diverse_weight*(enc_d%numSeg) + recency * (loc_weight % 512) + tie_weight*numD;
 
 					//	if(enc_d < 7 )
 					//		cur = 0 + recency * (loc_weight % 512);
@@ -1797,7 +2437,7 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 				DPRINTF(CacheRepl, "set %x: selecting blk %x for plru replacement with hd = %d %d %d %d \n", set, regenerateBlkAddr(blk->tag, set), cur_hd, fb[0], fb[1], fb[2], fb[3]);
 			}
 		}else{
-
+            #if 0 //we can choose various mappings per option - don't need loc_weight for selection right now
 				if(loc_weight >= 1024 )
 					fb = lineCompare(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]); // old line_compare
 				else if(loc_weight >= 512 ) // 2bit
@@ -1805,22 +2445,35 @@ MLC::findVictim(Addr addr, PacketPtr pkt)
 					fb = lineCompare_blk_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
 				else // flip MSB 1 bit
 					fb = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+            #endif
 
-			sets[set].flipBits[idx] = fb[4];
-			totalZT[271] += fb[0];
-			totalST[271] += fb[1];
-			totalHT[271] += fb[2];
-			totalTT[271] += fb[3];
-			totalInvalidFill += 1;
-			//avgZT[numSeg*numSeg - 1] = fb[0];
-			//avgST[numSeg*numSeg - 1] = fb[1];
-			//avgHT[numSeg*numSeg - 1] = fb[2];
-			//avgTT[numSeg*numSeg - 1] = fb[3];
-			//avgZT[numSeg*numSeg + 1] = fb[0];
-			//avgST[numSeg*numSeg + 1] = fb[1];
-			//avgHT[numSeg*numSeg + 1] = fb[2];
-			//avgTT[numSeg*numSeg + 1] = fb[3];
-			DPRINTF(CacheRepl, "set %x: selecting blk %x for plru replacement a invalid one with hd = %d %d %d %d \n", set, regenerateBlkAddr(blk->tag, set), 0, fb[0], fb[1], fb[2], fb[3]);
+                if((options == 0) or (options == 1))
+                    fb = lineCompare_2bit_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+                else if((options == 5) or (options == 7))
+                    fb = lineCompare_2bit_stateful_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+                else if((options == 6) or (options == 8))
+                    fb = lineCompare_blk_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+                else if ((options == 9) or (options == 0))
+                    fb = lineCompare_2bit_enc_based_mapping(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx], thres);
+				else // flip MSB 1 bit - Note sure if we use this any more but just as fallback case
+					fb = lineCompare_2bit(blk->data, pkt->getConstPtr<uint8_t>(), 64, shiftSize, flipSize, sets[set].flipBits[idx]);
+
+
+                sets[set].flipBits[idx] = fb[4];
+                totalZT[271] += fb[0];
+                totalST[271] += fb[1];
+                totalHT[271] += fb[2];
+                totalTT[271] += fb[3];
+                totalInvalidFill += 1;
+                //avgZT[numSeg*numSeg - 1] = fb[0];
+                //avgST[numSeg*numSeg - 1] = fb[1];
+                //avgHT[numSeg*numSeg - 1] = fb[2];
+                //avgTT[numSeg*numSeg - 1] = fb[3];
+                //avgZT[numSeg*numSeg + 1] = fb[0];
+                //avgST[numSeg*numSeg + 1] = fb[1];
+                //avgHT[numSeg*numSeg + 1] = fb[2];
+                //avgTT[numSeg*numSeg + 1] = fb[3];
+                DPRINTF(CacheRepl, "set %x: selecting blk %x for plru replacement a invalid one with hd = %d %d %d %d \n", set, regenerateBlkAddr(blk->tag, set), 0, fb[0], fb[1], fb[2], fb[3]);
 	}
 		//DPRINTF(CacheRepl, "set %x: selecting blk %x for plru replacement with \n", set, regenerateBlkAddr(blk->tag, set));
 

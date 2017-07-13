@@ -64,9 +64,12 @@ class MLC : public BaseSetAssoc
 	  int thres;
 	  int loc_weight;
 	  double diverse_weight;
+	  double tie_weight;
 	  int options;
 	  int UUthres;
 	  unsigned int curr_blk_enc_trans;
+	  bool enc_correction;
+	  int enc_remap_op;
   public:
     /** Convenience typedef. */
     typedef MLCParams Params;
@@ -102,7 +105,11 @@ class MLC : public BaseSetAssoc
 
   private:
     int generate_encoding(const Byte* blk_data, int blk_size, const int encodingSize, int thres);
+    int getNumD(const Byte* blk_data, int blk_size, const int encodingSize, int thres);
     bool isencodingU(const Byte* chunk, int chunkSize, uint8_t remapScheme, int thres);
+    double energy_cost(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap);
+    void increment_state_transitions(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap, std::vector<int>& res);
+    void update_energy_profile(uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap, Stats::Vector& bucket);
 };
 
 #endif // __MEM_CACHE_TAGS_MLC_HH__
