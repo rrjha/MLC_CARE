@@ -110,6 +110,7 @@ class MLC : public BaseSetAssoc
     double energy_cost(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap);
     void increment_state_transitions(bool statepreserving, uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap, std::vector<int>& res);
     void update_energy_profile(uint8_t aRemapScheme, std::unordered_map<int, int>& aCountMap, Stats::Vector& bucket);
+    int generate_exact_encoding(const Byte* blk_data, int blk_size, const int encodingSize, int thres, int flipbits);
 };
 
 #endif // __MEM_CACHE_TAGS_MLC_HH__

@@ -215,10 +215,30 @@ int MLC::generate_encoding(const Byte* blk_data, int blk_size, const int encodin
     return encoding;
 }
 
+int MLC::generate_exact_encoding(const Byte* blk_data, int blk_size, const int encodingSize, int thres, int flipbits) {
+    int enc = generate_encoding(blk_data, blk_size, encodingSize, thres);
+    int real_enc = 0;
+    int numSeg = (blk_size/encodingSize);
+    if(enc_correction) {
+        /* Traverse flipbits and victim encoding at the same time and apply correction */
+        for(int i = (numSeg-1); i >= 0; i--) {
+            if((((enc >> i) & 1) == 0) &&
+               (((flipbits >> 2*i) & 3) != 0)) //This mandates that we must have a no-remap option with encoding correction
+                /* Got a "Diverse" that is actually "U" after remap */
+                real_enc = (real_enc << 1) | 1;
+            else
+                real_enc = (real_enc << 1) | ((enc >> i) & 1);
+        }
+    }
+    else
+        real_enc = enc;
+    return real_enc;
+}
+
 int MLC::getNumD(const Byte* blk_data, int blk_size, const int encodingSize, int thres) {
-    int victim_encoding = generate_encoding(blk_data, blk_size, encodingSize, thres);
+    int encoding = generate_encoding(blk_data, blk_size, encodingSize, thres);
     int numU = 0;
-	for(int v = victim_encoding; v > 0; v &= (v-1))
+	for(int v = encoding; v > 0; v &= (v-1))
 		numU++;
     return ((blk_size/encodingSize) - numU);
 }
@@ -1238,9 +1258,11 @@ std::vector<int> MLC::lineCompare_2bit_enc_based_mapping(const Byte* ablock, con
     ret[4] = 0;
     Byte from, to;
     std::vector<int> res(5,0);// ZT, ST, HT, TT, remapping bits
-    int initial_enc = generate_encoding(bblock, size, encodingSize, thres);
+    int encA = generate_exact_encoding(ablock, size, encodingSize, thres, flipBits);
+    int encB = generate_encoding(bblock, size, encodingSize, thres);
     int ifFlip = (flipBits >>mask) &3; // ifFlip records the flip option information, because in the block I stored the real content, we need remmaped it back to cell content.
-    int encbit = (initial_enc >> (mask/2)) & 1;
+    int encbitA = (encA >> (mask/2)) & 1;
+    int encbitB = (encB >> (mask/2)) & 1;
     for(int j = 0; j < size; j++){ // for each byte
         from = ablock[j]; // from block
         to = bblock[j]; // to is the new block
@@ -1249,7 +1271,7 @@ std::vector<int> MLC::lineCompare_2bit_enc_based_mapping(const Byte* ablock, con
             int label_fr = (((from >> k) & 3));
             int label_to =  ((to >> k) & 3); // 3 for 0b11
 
-            int label = (encbit == 1) ? ((stateful_remaps[ifFlip][label_fr])*10 + label_to) : ((statetrans_remaps[enc_remap_op][ifFlip][label_fr])*10 + label_to); // so we use label to indicate the 2-bit old cell content and 2-bit new real content
+            int label = (encbitA == 1) ? ((stateful_remaps[ifFlip][label_fr])*10 + label_to) : ((statetrans_remaps[enc_remap_op][ifFlip][label_fr])*10 + label_to); // so we use label to indicate the 2-bit old cell content and 2-bit new real content
             normal_cnt[label] += 1;
         }
 
@@ -1257,25 +1279,26 @@ std::vector<int> MLC::lineCompare_2bit_enc_based_mapping(const Byte* ablock, con
         //Flip decision is made by the count. Rakesh you need change the decision logic here
             double min_energy = 256*energy_val[ETT]; //Some high value to start with
             uint8_t finalScheme = 0;
-            uint8_t start_scheme = (encbit == 1) ? (uint8_t)ENOREMAP : (uint8_t)ESTNOREMAP;
-            uint8_t end_scheme = (encbit == 1) ? (uint8_t)EREMAPINVALID : (uint8_t)ESTREMAPINVALID;
+            uint8_t start_scheme = (encbitB == 1) ? (uint8_t)ENOREMAP : (uint8_t)ESTNOREMAP;
+            uint8_t end_scheme = (encbitB == 1) ? (uint8_t)EREMAPINVALID : (uint8_t)ESTREMAPINVALID;
             for(uint8_t scheme = start_scheme; scheme < end_scheme; scheme++) {
-                double temp = energy_cost(encbit, scheme, normal_cnt);
+                double temp = energy_cost(encbitB, scheme, normal_cnt);
                 if(temp < min_energy) {
                     finalScheme = scheme;
                     min_energy = temp;
                 }
             }
             /* Check if the final scheme ensures change of state to "U" for this "D" chunk */
-            if((encbit == 0) && (finalScheme != 0) && (enc_correction == true) &&
+            if((encbitB == 0) && (finalScheme != 0) && (enc_correction == true) &&
                !(isencodingU(bblock+j+1-fs, fs, finalScheme, thres)))
                 finalScheme = 0;
 
-            increment_state_transitions(encbit, finalScheme, normal_cnt, res);
+            increment_state_transitions(encbitB, finalScheme, normal_cnt, res);
             res[4] = ((res[4] << 2) | finalScheme);
             mask = mask -2;
             ifFlip = (flipBits >> mask) & 3; // update the ifPlip for next chunk
-            encbit = (initial_enc >> (mask/2)) & 1; //update enc for next chunk
+            encbitA = (encA >> (mask/2)) & 1; //update enc for next chunk
+            encbitB = (encB >> (mask/2)) & 1; //update enc for next chunk
             normal_cnt.clear();
         }
     }
