@@ -321,6 +321,12 @@ def config_cache(options, system):
 		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 9, UUthres=0, thres=12)
 	if options.l3_tags == 620: #CARE with UU based selection and state preserving remaps, LRU fall back threshold = 2
 		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 7, UUthres=2)
+	if options.l3_tags == 705: #CARE with UU based selection and state preserving remaps, LRU fall back threshold = 2
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 5, UUthres=2, encodingSize = 8, flipSize = 8, thres = 24)
+	if options.l3_tags == 706: #CARE with UU based selection and state preserving remaps, LRU fall back threshold = 2
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 5, UUthres=2, encodingSize = 8, thres = 24)
+	if options.l3_tags == 707: #CARE with UU based selection and state preserving remaps, LRU fall back threshold = 2
+		system.l3.tags = MLC(loc_weight = 512, diverse_weight = 10.0, options = 5, UUthres=2, flipSize = 8)
 
     for i in xrange(options.num_cpus):
         if options.caches:

@@ -1,7 +1,7 @@
 LIST="astar bzip2 cactusADM GemsFDTD gobmk lbm leslie3d omnetpp perlbench sjeng soplex sphinx3 zeusmp"
 #LIST="perlbench sjeng"
 #DESIGN="options_550 options_507 options_521"
-DESIGN="options_550 options_507 options_504"
+DESIGN="options_507 options_705 options_706 options_707"
 #DESIGN="options_500"
 for a in $LIST
 do

@@ -2,7 +2,7 @@ LIST="astar bzip2 cactusADM GemsFDTD gobmk lbm leslie3d mcf omnetpp perlbench sj
 DESIGN="options_620"
 DESIGN1="options_512"
 DESIGN2="options_3"
-DESIGN3="options_550"
+DESIGN3="options_566"
 MY_DIR=`pwd`
 for a in $LIST
 do
@@ -55,7 +55,7 @@ do
         done
 
 	ds3=0
-	cd /ufrc/peir/qizeng/MLC_CARE/gem5/rest/
+	cd /ufrc/peir/qizeng/gem5/rest/
         for ds3 in $DESIGN3
         do
         printf "%-15s" "$ds3,"
