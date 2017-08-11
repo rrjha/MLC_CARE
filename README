@@ -1,4 +1,11 @@
-This is the gem5 simulator.
+This is a simulation in support of our work on MLC STTMRAM LLC cache for a novel block replacement scheme
+that is optimized for write energy consumption.
+
+Simulations in this code target sections IV of our paper.
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Below are the details of gem5 framework used for this simulation:
 
 The main website can be found at http://www.gem5.org
 
